@@ -41,7 +41,7 @@ if False: # test of loading the files into numpy
 
 '''Load in the test file (permanent)'''
 gray_matrix = cv2.imread("test.jpg", cv2.IMREAD_GRAYSCALE)
-#print(gray_matrix.shape)
+#print(gray_matrix)
 
 if False:  # test disection
     first_cut = gray_matrix[7*264:8*264,176*7:176*8]
@@ -186,13 +186,13 @@ class simulation_grid: # the grid defined above is a member of this class when c
         T = T0
         while T > 1:
             T *= schedule_constant
-            print(self.energy) # debug
+            print(f"energy: {self.energy}") # debug
             self.markovStep(T)
         return self.simGrid
 
 page = simulation_grid(grid,tiles)
 
-restored = page.reconstruct_page(0.9999,100.)
+restored = page.reconstruct_page(0.9999,10000.) # chose 10000 as inital tempurature because the initial energies are about 20000
 
 '''Now that we have the ordered array, all that remains is to put the grayscale map back together.'''
 
