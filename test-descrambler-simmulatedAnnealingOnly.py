@@ -160,6 +160,7 @@ class simulation_grid: # the grid defined above is a member of this class when c
             0. Swap two random tiles.
             1. choose row or column, then choose a random row or column and move all tiles from their initial side of the barrier to the other.
             2. choose a row and column, this divides the space into 4 regions. Then rotate the elements of a single region CCW in place.
+            3. replace the current solution with a random permutation - this allows for a quick escape of a minimum if we are stuck; but requires getting fairly luck so might not be worth it
         Hopefully this provides enough extra ways of purturbing the system that we can search the solution space more efficiently.
         '''
         choice = np.random.randint(0,3)
@@ -189,7 +190,7 @@ class simulation_grid: # the grid defined above is a member of this class when c
                 new_grid[:,:col] = self.simGrid[:,-col:] # sets the first n rows equal the last n rows
                 del col
 
-        else: # rotate the pieces
+        elif choice == 2: # rotate the pieces
             index = np.random.randint(1,self.grid_shape[1]) # needs to be square so we only use one index
             if np.random.randint(0,2) == 0:
                 new_grid[:index,:index] = np.rot90(new_grid[:index,:index])
@@ -197,6 +198,8 @@ class simulation_grid: # the grid defined above is a member of this class when c
                 new_grid[index:,index:] = np.rot90(new_grid[index:,index:])
 
             del index
+        else: # currently off
+            new_grid = np.random.permutation(new_grid)
 
 
         '''Now that we have purtubed the grid, we compute the energy and decide acceptance'''
