@@ -221,7 +221,7 @@ class simulation_grid: # the grid defined above is a member of this class when c
         T = T0
         while T > 1:
             T *= schedule_constant
-            print(f"energy: {self.energy}") # debug
+            print(f"energy: {self.energy}, Tempurature: {T}") # debug
             self.markovStep(T)
         return self.simGrid
 
