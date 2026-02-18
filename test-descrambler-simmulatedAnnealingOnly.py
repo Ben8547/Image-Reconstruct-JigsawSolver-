@@ -97,6 +97,7 @@ from numpy.linalg import norm
 
 class simulation_grid: # the grid defined above is a member of this class when combined with it's list of dictionaries, these are utility functions to use on the simulation grid
     def __init__(self, grid, dict_list):
+        self.gradient_cost = False # if true we use an energy function that penalizes changes in intensity gradients at edges, if false, we use the standard intensity cost
         self.simGrid = grid
         self.tile_data = dict_list
         self.grid_shape = self.simGrid.shape
@@ -108,9 +109,15 @@ class simulation_grid: # the grid defined above is a member of this class when c
             for j in range(1,self.grid_shape[1]): # skip first column
                 # we don't want to double count interactions so we first only compute the energies to the left and obove each point (skipping the topmost and leftmost row/column)
                 # then since the edges do not interact we can stop here since each interacting edge has been counted exactly once.
-                energy += self.interaction_energy((i,j))
+                if not self.gradient_cost:
+                    energy += self.interaction_energy((i,j))
+                elif self.gradient_cost:
+                    energy += self.gradient_interact_energy((i,j))
         return energy
-
+    
+    def gradient_interact_energy(self, grid_point:tuple) -> float:
+        # finish this later: see Gallagher et al. for details
+        return 
 
     def interaction_energy(self, grid_point:tuple) -> float:
         '''
