@@ -146,27 +146,64 @@ class Geonome:
 
             #seed the child with the first tile.
             # quickest way to search is to just go through every every other element of one parent, find the element in the other, and then check the neighbors of both in each direction to see if they match
-            
-
+            self.parent_adjacencies_lookup, self.parent_adjacencies = self.search_parents_for_same_adjacencies()
+            # now if self.parent_adjacencies is non-empty we seed the array with one of it's members.
+            if self.parent_adjacencies: # empty lists give false; lists with elements yield true
+                self.grid[0,0] = np.random.choice(self.parent_adjacencies)
+            else:
+                self.grid[0,0] = np.random.choice(parent1.ravel())
+            self.used_tiles = [self.grid[0,0]]
             self.num_used_tiles = 1
-            self.used_tiles = []
+
+            # now the child is seeded with its first element and can be filled uwing the aforementioned algorithm
 
         def search_parents_for_same_adjacencies(self):
             '''
             In this function we search the parents for any equivalent adjacencies
-            We return a list of tuples. Each tuple contains an integer representing the tile, then another integer, then a direction in a string representing direction.
-            For instance: (1, 2, "left"). This is read as 1 is to the left of 2 in both parents.
-            Similarly: (4, 7, "top") reads 4 is located above 7 in both parents.
+            We return a list of dictionaries. Values of the dicts contain the adjacent member, if it is shared.
+            We also need to store a list of all of the adjacencies so that we can choose one at random when filling the child. Repeats are fine - just think of it as weighting by the number of adjacencies that item has
             '''
-            parent1 = self.parents[0].flat # it will be easier to parse the flat arrays
+            parent1 = self.parents[0].flat # it will probably be easier to parse the flat arrays
             parent2 = self.parents[1].flat
+            cols = self.max_shape[1]
+            rows = self.max_shape[0]
 
-            list_of_tuples = []
+            list_of_tuples = [{"top": None, "bottom": None, "left": None, "right": None} for _ in range(len(parent1))] # if it's in the "top" slot then it means that it is to the left of the entry the dictionary represents
+            list_of_adjacencies = []
 
-            for i in range(len(parent1)//2): # we can skip every other entry and still read each adjacency.
-                if False:
-                    list_of_tuples.append((n,m,"direction"))
-            return list_of_tuples
+            value = parent1[i]
+            parent2_arg = np.argwhere(parent2 == value)[0,0] # should find the point where parent2 takes the same value as parent 1 - probably done as efficintly as possible since there is a numpy function doing the work.
+
+            for i in range(len(parent1)//2): # we can skip every other entry and still read each adjacency. (or we could read each one and only consider left and top adjacencies but that is probably less efficient since most of the time probably comes from the element in parent two)
+                if (i % cols != 0 and parent2_arg % cols != 0): # conditions for not having a neighbor on a particular side
+                    if parent1[i-1]==parent2[parent2_arg-1]:
+                        neighbor = parent1[i-1]
+                        list_of_tuples[parent1[i]]["left"] = neighbor
+                        list_of_tuples[neighbor]["right"] = parent1[i] # need to be able to look up both ways
+                        list_of_adjacencies.append[parent1[i],neighbor]
+
+                if (i >= cols and parent2_arg >= cols):
+                    if parent1[i - cols] == parent2[parent2_arg - cols]:
+                        neighbor = parent1[i-cols]
+                        list_of_tuples[parent1[i]]["top"] = neighbor
+                        list_of_tuples[neighbor]["bottom"] = parent1[i] # need to be able to look up both ways
+                        list_of_adjacencies.append[parent1[i],neighbor]
+
+                if (i % cols != cols-1) and (parent2_arg % cols != cols-1):
+                    if parent1[i+1] == parent2[parent2_arg+1]:
+                        neighbor = parent1[i+1]
+                        list_of_tuples[parent1[i]]["right"] = neighbor
+                        list_of_tuples[neighbor]["left"] = parent1[i] # need to be able to look up both ways
+                        list_of_adjacencies.append[parent1[i],neighbor]
+
+                if (i // cols != rows-1) and (parent2_arg // cols != rows-1):
+                    if parent1[i+cols] == parent2[parent2_arg + cols]:
+                        neighbor = parent1[i+cols]
+                        list_of_tuples[parent1[i]]["bottom"] = neighbor
+                        list_of_tuples[neighbor]["top"] = parent1[i] # need to be able to look up both ways
+                        list_of_adjacencies.append[parent1[i],neighbor]
+
+            return list_of_tuples, list_of_adjacencies
         
         def rand_parent(self):
             return self.parents[np.random.randint(0,2)]
