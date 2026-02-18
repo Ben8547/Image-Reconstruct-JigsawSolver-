@@ -152,7 +152,7 @@ class Geonome:
                 self.grid[0,0] = np.random.choice(self.parent_adjacencies)
             else:
                 self.grid[0,0] = np.random.choice(parent1.ravel())
-            self.used_tiles = [self.grid[0,0]] # add the used tile to the list - this cannot be added again
+            self.used_tiles = [None, self.grid[0,0]] # add the used tile to the list - this cannot be added again
             self.num_used_tiles = 1
 
             # now the child is seeded with its first element and can be filled uwing the aforementioned algorithm
@@ -160,6 +160,7 @@ class Geonome:
             while self.num_used_tiles < len(parent1.ravel()):
                 # start by searching for an element in the child in self.parent_adjacencies
                 current_shape = self.grid.shape
+                place_random = False
                 if self.parent_adjacencies: # check that there even are duplicate adjacencies
                     dual_adjacent_in_child = []
                     for i, element in enumerate(self.grid.ravel()):
@@ -168,11 +169,56 @@ class Geonome:
                         n = i % current_shape[1] # column index of element
                         if element in self.parent_adjacencies:
                             open = self.check_open_side(n,m, current_shape)
-                            open = open[0] or open[1] or open[2] or open[3]
-                            if open: # check if the tile has an open adjacency
-                                dual_adjacent_in_child.append(element) # this will be a list of all of the elements in the child that have repeated adjacencies in the parents that also have open sides in the grid
-                    if dual_adjacent_in_child: # check the list is non-empty
-                        finished=False
+                            any_open = open['top'] or open['bottom'] or open['left'] or open['right']
+                            if any_open: # check if the tile has an open adjacency
+                                repetative_neighbors_dict = self.parent_adjacencies_lookup[element] # should return a dictionary with the parental repeated neighbors on each side listed
+                                if (repetative_neighbors_dict['top'] not in self.used_tiles) or (repetative_neighbors_dict['bottom'] not in self.used_tiles) or (repetative_neighbors_dict['right'] not in self.used_tiles) or (repetative_neighbors_dict['left'] not in self.used_tiles): # check that the intended neighbor has not already been place in the child; recall that None is in the list of used tiles so we get True if there is no ajacency
+                                    dual_adjacent_in_child.append(element) # this will be a list of all of the elements in the child that have repeated adjacencies in the parents that also have open sides in the grid
+                    # choose a random entry
+                    if dual_adjacent_in_child: # check the list is non-empty; i.e. were any of the neighbors not already chosen?
+                        # choose a tile which a neighbour
+                        tile = np.random.choice(dual_adjacent_in_child)
+                        # now find its common neighbours in the parents, and choose one at random
+                        repetative_neighbors_dict = self.parent_adjacencies_lookup[tile]
+                        valid_directions = []
+                        for direction in ['top','bottom','left','right']:
+                            if (repetative_neighbors_dict[direction] != None) and self.check_open_side(n,m,current_shape)[direction]: # requires the element to be open in that direction and for it to actully have a valid neighbor
+                                valid_directions.append(direction)
+                        direction = np.random.choice(valid_directions) # choose a random valid direction
+                        # place the tile in the chosen direction
+                        if direction == 'top':
+                            if n == 0: # the tile in child is already at the top
+                                self.add_row_above() # we don't need to worry about going over because we ensured that we chose directions open in that orientattion
+                            self.grid[n-1,m] = repetative_neighbors_dict[direction] # pace the tile in approprate direction
+                            self.num_used_tiles += 1
+                            self.used_tiles.append(self.grid[n-1,m]) # add the used tile to the list
+                        elif direction == 'bottom':
+                            if n == current_shape[0]-1: # the tile in child is already at the bottom
+                                self.add_row_below()
+                            self.grid[n+1,m] = repetative_neighbors_dict[direction] # pace the tile in approprate direction
+                            self.num_used_tiles += 1
+                            self.used_tiles.append(self.grid[n+1,m]) # add the used tile to the list
+                        elif direction == 'left':
+                            if m == 0: # the tile in child is already at the top
+                                self.add_column_left()
+                            self.grid[n,m-1] = repetative_neighbors_dict[direction] # pace the tile in approprate direction
+                            self.num_used_tiles += 1
+                            self.used_tiles.append(self.grid[n,m-1]) # add the used tile to the list
+                        elif direction == 'right':
+                            if m == current_shape[1]: # the tile in child is already at the top
+                                self.add_column_right()
+                            self.grid[n,m+1] = repetative_neighbors_dict[direction] # pace the tile in approprate direction
+                            self.num_used_tiles += 1
+                            self.used_tiles.append(self.grid[n,m+1]) # add the used tile to the list
+                        
+                    else: # there are no dual adjacencies present in the child
+                        place_random = True
+
+                else: #there are no dulpicate adjacencies 
+                    place_random == True
+                
+                if place_random:
+
 
 
         def check_open_side(self,row:int, col:int, shape) -> tuple:
@@ -198,7 +244,7 @@ class Geonome:
                 left_open = (self.grid[row,col-1] == -1)
                 right_open = (self.grid[row,col+1] == -1)
 
-            return (top_open, bottom_open, left_open, right_open)
+            return {'top':top_open, 'bottom':bottom_open, 'left':left_open, 'right':right_open}
 
         def search_parents_for_same_adjacencies(self):
             '''
