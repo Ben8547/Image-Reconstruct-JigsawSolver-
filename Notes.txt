@@ -5,3 +5,7 @@
 2-17-2026: 15:20 : I'm actually pretty impressed that I managed to come up with one of the more optimal objective functions on my own and came up with the same image representation scheme as the people in most of these papers.
 
 
+2-18-2026 12:14 : The genetic algorithm that I'm trying to implement was almost completed last night, but coding the crossing function is turning out to be technical challenge. I'm revisiting the pure annealing methods with an additional idea. I think that the reason it got stuck before was because it would only move a single pair of pieces at a time. Instead, I think that we should choose the perturbation from a list of random possibilities that include larger rearrangements such as cutting the entire space into large segments and shifting them clockwise or swapping locations of entire swaths of the domain. This would allow pieces that are already paired to move together and we would no longer be trapped in a local minimum.
+
+2-18-2026 13:08 : This didn't seem to really make any difference at all. We may need to look into those local greedy algorithms. I could think that they might give insight into what operations would be most effective given a certain solution state.
+

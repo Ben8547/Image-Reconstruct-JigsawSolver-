@@ -154,23 +154,58 @@ class simulation_grid: # the grid defined above is a member of this class when c
         point1 = (0,0)
         point2 = (0,0)
         count = 0
-        while (point1 == point2) and (count < 10): # ensures (to an reasonable extent) that we swap two distinct points
-            point1 = (np.random.randint(0,self.grid_shape[0]), np.random.randint(0,self.grid_shape[1]))
-            point2 = (np.random.randint(0,self.grid_shape[0]), np.random.randint(0,self.grid_shape[1]))
-            count += 1
-        del count # no reason to keep it about 
+        '''
+        I want to implement several differnent methods of purtutbation, not just swapping two random pieces, though this is certainly still a viable purtubation.
+        I think we will have the following options:
+            0. Swap two random tiles.
+            1. choose row or column, then choose a random row or column and move all tiles from their initial side of the barrier to the other.
+            2. choose a row and column, this divides the space into 4 regions. Then rotate the elements of a single region CCW in place.
+        Hopefully this provides enough extra ways of purturbing the system that we can search the solution space more efficiently.
+        '''
+        choice = np.random.randint(0,3)
+        new_grid = np.copy(self.simGrid) # grid to store the purtubation in
+        if choice == 0:
+            while (point1 == point2) and (count < 10): # ensures (to an reasonable extent) that we swap two distinct points
+                point1 = (np.random.randint(0,self.grid_shape[0]), np.random.randint(0,self.grid_shape[1]))
+                point2 = (np.random.randint(0,self.grid_shape[0]), np.random.randint(0,self.grid_shape[1]))
+                count += 1
+            del count # no reason to keep it about 
 
-        #replace the points in a new grid
-        new_grid = np.copy(self.simGrid)
-        temp_save = new_grid[point1]
-        new_grid[point1] = new_grid[point2]
-        new_grid[point2] = temp_save
-        #print(new_grid - self.simGrid) # debug
+            #replace the points in a new grid
+            #temp_save = new_grid[point1] # there was no reason to ever do this - it's stored in the old grid still...
+            new_grid[point1] = new_grid[point2]
+            new_grid[point2] = self.simGrid[point1]
+            #print(new_grid - self.simGrid) # debug
+
+        elif choice == 1: # swap sides of grid
+            if np.random.randint(0,2) == 0: # choose row
+                row  = np.random.randint(1,self.grid_shape[0]) # choose random row index; don't allow first row since this will result in an unperturbed array
+                new_grid[row:,:] = new_grid[:-row,:]
+                new_grid[:row,:] = self.simGrid[-row:,:] # sets the first n rows equal the last n rows
+                del row
+            else: # choose column
+                col = np.random.randint(1,self.grid_shape[1])
+                new_grid[:,col:] = new_grid[:,:-col]
+                new_grid[:,:col] = self.simGrid[:,-col:] # sets the first n rows equal the last n rows
+                del col
+
+        else: # rotate the pieces
+            index = np.random.randint(1,self.grid_shape[1]) # needs to be square so we only use one index
+            if np.random.randint(0,2) == 0:
+                new_grid[:index,:index] = np.rot90(new_grid[:index,:index])
+            else:
+                new_grid[index:,index:] = np.rot90(new_grid[index:,index:])
+
+            del index
+
+
+        '''Now that we have purtubed the grid, we compute the energy and decide acceptance'''
 
         new = simulation_grid(new_grid,self.tile_data) # do this so that we can use the total energy function; probly not as quick as just writing a separate function, but saves me a lot of work
 
         previous_energy = self.energy
         new_energy = new.total_energy()
+        del new # no reason to keep it around, the class stores a lot of redundant information
         #print(previous_energy) # debug
         #print(new_energy) # debug
 
@@ -192,7 +227,7 @@ class simulation_grid: # the grid defined above is a member of this class when c
 
 page = simulation_grid(grid,tiles)
 
-restored = page.reconstruct_page(0.9999,10000.) # chose 10000 as inital tempurature because the initial energies are about 20000
+restored = page.reconstruct_page(0.9999,200.)
 
 '''Now that we have the ordered array, all that remains is to put the grayscale map back together.'''
 

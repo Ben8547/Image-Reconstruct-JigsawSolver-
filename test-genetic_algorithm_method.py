@@ -157,6 +157,9 @@ class Geonome:
 
             # now the child is seeded with its first element and can be filled uwing the aforementioned algorithm
 
+            while self.num_used_tiles < len(parent1.ravel()):
+                
+
         def search_parents_for_same_adjacencies(self):
             '''
             In this function we search the parents for any equivalent adjacencies
