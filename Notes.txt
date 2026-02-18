@@ -9,5 +9,6 @@
 
 2-18-2026 13:08 : This didn't seem to really make any difference at all. We may need to look into those local greedy algorithms. I could think that they might give insight into what operations would be most effective given a certain solution state.
 
-2-18-2026 2:53 : Back to working on the genetic algorithm.
+2-18-2026 14:53 : Back to working on the genetic algorithm.
 
+2-18-2026 17:33 : simplified crossing algorithm sans the mutations is not complete. Will run a small trial to fish for bugs

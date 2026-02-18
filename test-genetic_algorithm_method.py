@@ -153,6 +153,8 @@ class Geonome:
             else:
                 self.grid[0,0] = np.random.choice(parent1.ravel())
             self.used_tiles = [None, self.grid[0,0]] # add the used tile to the list - this cannot be added again
+            self.unused_tiles = [i for i in range(self.max_shape[0]*self.max_shape[1])]
+            del self.unused_tiles[self.grid[0,0]]
             self.num_used_tiles = 1
 
             # now the child is seeded with its first element and can be filled uwing the aforementioned algorithm
@@ -173,11 +175,13 @@ class Geonome:
                             if any_open: # check if the tile has an open adjacency
                                 repetative_neighbors_dict = self.parent_adjacencies_lookup[element] # should return a dictionary with the parental repeated neighbors on each side listed
                                 if (repetative_neighbors_dict['top'] not in self.used_tiles) or (repetative_neighbors_dict['bottom'] not in self.used_tiles) or (repetative_neighbors_dict['right'] not in self.used_tiles) or (repetative_neighbors_dict['left'] not in self.used_tiles): # check that the intended neighbor has not already been place in the child; recall that None is in the list of used tiles so we get True if there is no ajacency
-                                    dual_adjacent_in_child.append(element) # this will be a list of all of the elements in the child that have repeated adjacencies in the parents that also have open sides in the grid
-                    # choose a random entry
+                                    dual_adjacent_in_child.append(i) # this will be a list of all of the elements in the child that have repeated adjacencies in the parents that also have open sides in the grid
                     if dual_adjacent_in_child: # check the list is non-empty; i.e. were any of the neighbors not already chosen?
                         # choose a tile which a neighbour
-                        tile = np.random.choice(dual_adjacent_in_child)
+                        tile = np.random.choice(dual_adjacent_in_child) # tile index in the flat array
+                        m = tile // current_shape[0]
+                        n = tile % current_shape[1]
+                        tile = self.grid[m,n]
                         # now find its common neighbours in the parents, and choose one at random
                         repetative_neighbors_dict = self.parent_adjacencies_lookup[tile]
                         valid_directions = []
@@ -192,24 +196,28 @@ class Geonome:
                             self.grid[n-1,m] = repetative_neighbors_dict[direction] # pace the tile in approprate direction
                             self.num_used_tiles += 1
                             self.used_tiles.append(self.grid[n-1,m]) # add the used tile to the list
+                            del self.unused_tiles[self.grid[n-1,m]]
                         elif direction == 'bottom':
                             if n == current_shape[0]-1: # the tile in child is already at the bottom
                                 self.add_row_below()
                             self.grid[n+1,m] = repetative_neighbors_dict[direction] # pace the tile in approprate direction
                             self.num_used_tiles += 1
                             self.used_tiles.append(self.grid[n+1,m]) # add the used tile to the list
+                            del self.unused_tiles[self.grid[n+1,m]]
                         elif direction == 'left':
                             if m == 0: # the tile in child is already at the top
                                 self.add_column_left()
                             self.grid[n,m-1] = repetative_neighbors_dict[direction] # pace the tile in approprate direction
                             self.num_used_tiles += 1
                             self.used_tiles.append(self.grid[n,m-1]) # add the used tile to the list
+                            del self.unused_tiles[self.grid[n,m-1]]
                         elif direction == 'right':
-                            if m == current_shape[1]: # the tile in child is already at the top
+                            if m == current_shape[1]-1: # the tile in child is already at the top
                                 self.add_column_right()
                             self.grid[n,m+1] = repetative_neighbors_dict[direction] # pace the tile in approprate direction
                             self.num_used_tiles += 1
                             self.used_tiles.append(self.grid[n,m+1]) # add the used tile to the list
+                            del self.unused_tiles[self.grid[n,m+1]]
                         
                     else: # there are no dual adjacencies present in the child
                         place_random = True
@@ -218,6 +226,73 @@ class Geonome:
                     place_random == True
                 
                 if place_random:
+                    # find elements that have open side:
+                    valid_elements = []
+                    for i, element in enumerate(self.grid.ravel()):
+                        if element != -1:
+                            # i is the index of the raveled array; element is the integer representing the tile
+                            m = i // current_shape[1] # row index of element
+                            n = i % current_shape[1] # column index of element
+                            open = self.check_open_side(n,m, current_shape)
+                            any_open = open['top'] or open['bottom'] or open['left'] or open['right']
+                            if any_open:
+                                valid_elements.append(i)
+                    element_index = np.random.choice(valid_elements) # choose one of the valid elements to add on to
+                    m = i // current_shape[1]
+                    n = i % current_shape[1]
+                    element = self.grid[m,n]
+                    # now find the valid neighbors of that element
+                    for direction in ['top','bottom','left','right']:
+                            if self.check_open_side(n,m,current_shape)[direction]: # requires the element to be open in that direction and for it to actully have a valid neighbor
+                                valid_directions.append(direction)
+                    direction = np.random.choice(valid_directions) # choose once of the valid directions at random.
+                    
+                    # get a random sample of unused tiles
+                    num_sample = np.max([10,len(self.unused_tiles)]) # by doing this random sampling, it ensures if the most compatable one it not the true fit, we have a chance of still getting the true fit
+                    samples = np.random.choice(self.unused_tiles,num_sample,replace=False)
+                    max_compatability = (element,-np.inf)
+                    for sample_tile in samples:
+                        x = outerself.tile_data[element][direction]
+                        y = outerself.tile_data[sample_tile][outerself.complementary_directions[direction]]
+                        compat = compatability(x,y)
+                        if compat > max_compatability[1]: # ensures at the end we have the most compatable one
+                            max_compatability = (sample_tile,compat)
+                    max_compatability = max_compatability[0]
+                    # add the chosen neighbor to the child
+                    if direction == 'top':
+                        if n == 0: # the tile in child is already at the top
+                            self.add_row_above() # we don't need to worry about going over because we ensured that we chose directions open in that orientattion
+                        self.grid[n-1,m] = max_compatability # pace the tile in approprate direction
+                        self.num_used_tiles += 1
+                        self.used_tiles.append(self.grid[n-1,m]) # add the used tile to the list
+                        del self.unused_tiles[self.grid[n-1,m]]
+                    elif direction == 'bottom':
+                        if n == current_shape[0]-1: # the tile in child is already at the bottom
+                            self.add_row_below()
+                        self.grid[n+1,m] = max_compatability # pace the tile in approprate direction
+                        self.num_used_tiles += 1
+                        self.used_tiles.append(self.grid[n+1,m]) # add the used tile to the list
+                        del self.unused_tiles[self.grid[n+1,m]]
+                    elif direction == 'left':
+                        if m == 0: # the tile in child is already at the top
+                            self.add_column_left()
+                        self.grid[n,m-1] = max_compatability # pace the tile in approprate direction
+                        self.num_used_tiles += 1
+                        self.used_tiles.append(self.grid[n,m-1]) # add the used tile to the list
+                        del self.unused_tiles[self.grid[n,m-1]]
+                    elif direction == 'right':
+                        if m == current_shape[1]-1: # the tile in child is already at the top
+                            self.add_column_right()
+                        self.grid[n,m+1] = max_compatability # pace the tile in approprate direction
+                        self.num_used_tiles += 1
+                        self.used_tiles.append(self.grid[n,m+1]) # add the used tile to the list
+                        del self.unused_tiles[self.grid[n,m+1]]
+                    
+                    ''' # choose a random element that is not -1
+                    not_minus_1 = self.grid + 1
+                    not_minus_1 = np.argwhere(not_minus_1) # returns the indicies where the child is not -1
+                    tile = np.random.choice(not_minus_1)
+                    element = self.grid[tile]''' # depreciated
 
 
 
