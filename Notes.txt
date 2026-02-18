@@ -1,1 +1,7 @@
 2-17-2026 13:50 : The simulated annealing approach, while working, seems to be getting stuck in local minima. While one of the hallmarks of this method is that it should not get stuck in local minima, it seems that here the local minima trap due to the method of system perturbation. I chose to define a new grid by swapping two random points in the grid, so while the program has demonstrated its ability to match several pairs of pieces, since it cannot move more than one tile at a time, moving one of the paired tiles into its correct position would almost certainly increase the system energy significantly because we cannot move the tiles in their pairs so the stabilizing interaction would be lost. We could probably play around with the temperature schedule, but I think that this probably won't work well on its own. We will need to use some other established method to match regions. Then perhaps we can add the simulated annealing back in at some point.
+
+2-17-2026 14:25 : Found papers on genetic algorithms; decided to try implementing a genetic algorithm.
+
+2-17-2026: 15:20 : I'm actually pretty impressed that I managed to come up with one of the more optimal objective functions on my own and came up with the same image representation scheme as the people in most of these papers.
+
+
