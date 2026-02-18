@@ -45,11 +45,11 @@ class Geonome:
         self.tile_data = dict_list
         self.grid_shape = grid_list[0].shape
         '''Now, when the class is defined, we compute all of the "best buddy" pieces. Since this is only dependent on the dict_list which does not mutate, we can do it once and leave it.'''
-        self.compatability_lists = self.generate_compatability_list()
+        #self.compatability_lists = self.generate_compatability_list()
         #self.best_buddies = self.find_best_buddies()
-        print('completed initialization of the geonome')
+        #print('completed initialization of the geonome')
 
-    def find_best_buddies(self):
+    '''def find_best_buddies(self):
         """
         A best buddy is defined as follows:
 
@@ -93,7 +93,7 @@ class Geonome:
                 "left":[ (j, left_compats[j]) for j in (np.argsort( left_compats )) ],
                 "right":[ (j, right_compats[j]) for j in (np.argsort( right_compats )) ]
             })
-        return list_dicts_lists
+        return list_dicts_lists''' # removed because it was clunkey and probably not well optomized, I'd like to revisit when I more time to think about it
 
     def n_most_fit(self,n):
         if n > self.num_chromosomes:
@@ -152,13 +152,53 @@ class Geonome:
                 self.grid[0,0] = np.random.choice(self.parent_adjacencies)
             else:
                 self.grid[0,0] = np.random.choice(parent1.ravel())
-            self.used_tiles = [self.grid[0,0]]
+            self.used_tiles = [self.grid[0,0]] # add the used tile to the list - this cannot be added again
             self.num_used_tiles = 1
 
             # now the child is seeded with its first element and can be filled uwing the aforementioned algorithm
 
             while self.num_used_tiles < len(parent1.ravel()):
-                
+                # start by searching for an element in the child in self.parent_adjacencies
+                current_shape = self.grid.shape
+                if self.parent_adjacencies: # check that there even are duplicate adjacencies
+                    dual_adjacent_in_child = []
+                    for i, element in enumerate(self.grid.ravel()):
+                        # i is the index of the raveled array; element is the integer representing the tile
+                        m = i // current_shape[1] # row index of element
+                        n = i % current_shape[1] # column index of element
+                        if element in self.parent_adjacencies:
+                            open = self.check_open_side(n,m, current_shape)
+                            open = open[0] or open[1] or open[2] or open[3]
+                            if open: # check if the tile has an open adjacency
+                                dual_adjacent_in_child.append(element) # this will be a list of all of the elements in the child that have repeated adjacencies in the parents that also have open sides in the grid
+                    if dual_adjacent_in_child: # check the list is non-empty
+                        finished=False
+
+
+        def check_open_side(self,row:int, col:int, shape) -> tuple:
+            '''top/bottom'''
+            if (row == 0): # if on top boundary
+                top_open = not (shape[0] == self.max_shape[0]) # if we the maximal dimension, then top is not open
+                bottom_open = (self.grid[row+1,col] == -1)
+            elif (row == shape[0]-1): # on bottom boundary
+                bottom_open = not (shape[0] == self.max_shape[0])
+                top_open = (self.grid[row-1,col] == -1)
+            else: # then we are in one of the middle rows
+                top_open = (self.grid[row-1,col] == -1)
+                bottom_open = (self.grid[row+1,col] == -1)
+            
+            '''left/right'''
+            if (col == 0): # if on left boundary
+                left_open = not (shape[1] == self.max_shape[1]) # if we the maximal dimension, then top is not open
+                right_open = (self.grid[row,col+1] == -1)
+            elif (col == shape[1]-1): # on right boundary
+                right_open = not (shape[1] == self.max_shape[1])
+                left_open = (self.grid[row,col-1] == -1)
+            else: # then we are in one of the middle rows
+                left_open = (self.grid[row,col-1] == -1)
+                right_open = (self.grid[row,col+1] == -1)
+
+            return (top_open, bottom_open, left_open, right_open)
 
         def search_parents_for_same_adjacencies(self):
             '''
@@ -249,6 +289,11 @@ class Geonome:
                into the corre If one exists in the open spatial configuration. If not then choose a random piece with adjacencies in the child
                and put a pice with the highest compatability to an open side adjacent to that side; I am not going to do the best buddies search right now (instead just check that the adjecent piece is highest compatability in one direction), I feel like using raw compatability scores shoudd suffice, I might come back on another day and add this in.
             3. Mutation - instead of placing the determined piece, place a random piece with low probability - I may decide to incorperate this later, but I will certainly use my annealing mutator
+
+        This is what I want to do instead:
+            0. The same as above (seeding)
+            1.  again, look for adjacencies with placed tiles. This time, if none exist then choose a random sample of tiles, compute the scores, choose the best match, and place.
+            3. run a few iterations of simulated annealing to mutate the array (low initial tempurature)
         '''
 
         parent1 = self.chromosomes[parent1]
