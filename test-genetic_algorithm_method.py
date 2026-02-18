@@ -95,14 +95,14 @@ class Geonome:
             })
         return list_dicts_lists''' # removed because it was clunkey and probably not well optomized, I'd like to revisit when I more time to think about it
 
-    def n_most_fit(self,n):
+    def n_most_fit(self,n:int):
         if n > self.num_chromosomes:
             raise(ValueError)
         
         list_of_fitnesses = []
         for i in range(self.num_chromosomes):
             list_of_fitnesses.append(self.fitness(i))
-        self.chromosomes = [self.chromosome[i] for i in np.argsort(list_of_fitnesses)] # order the chromosomes from least fit to most fit
+        self.chromosomes = [self.chromosomes[i] for i in np.argsort(list_of_fitnesses)] # order the chromosomes from least fit to most fit
         return self.chromosomes[-n-1:-1] # return the last n items of the list; will fail if n > length of chromosomes hence the earlier error message
     
     def fitness(self,i:int): #This method is analagous to the energy function in simmulated annealing
@@ -292,7 +292,10 @@ class Geonome:
                     not_minus_1 = self.grid + 1
                     not_minus_1 = np.argwhere(not_minus_1) # returns the indicies where the child is not -1
                     tile = np.random.choice(not_minus_1)
-                    element = self.grid[tile]''' # depreciated
+                    element = self.grid[tile]''' # depreciate
+
+            # end of while loop
+            self.mutate() # once all of the tiles have been placed, run the mutation
 
 
 
@@ -335,10 +338,9 @@ class Geonome:
             list_of_tuples = [{"top": None, "bottom": None, "left": None, "right": None} for _ in range(len(parent1))] # if it's in the "top" slot then it means that it is to the left of the entry the dictionary represents
             list_of_adjacencies = []
 
-            value = parent1[i]
-            parent2_arg = np.argwhere(parent2 == value)[0,0] # should find the point where parent2 takes the same value as parent 1 - probably done as efficintly as possible since there is a numpy function doing the work.
-
             for i in range(len(parent1)//2): # we can skip every other entry and still read each adjacency. (or we could read each one and only consider left and top adjacencies but that is probably less efficient since most of the time probably comes from the element in parent two)
+                value = parent1[i]
+                parent2_arg = np.argwhere(parent2 == value)[0,0] # should find the point where parent2 takes the same value as parent 1 - probably done as efficintly as possible since there is a numpy function doing the work.
                 if (i % cols != 0 and parent2_arg % cols != 0): # conditions for not having a neighbor on a particular side
                     if parent1[i-1]==parent2[parent2_arg-1]:
                         neighbor = parent1[i-1]
@@ -393,7 +395,7 @@ class Geonome:
             # we can run a few iterations of a simmulated annealing algorithm to approve or reject the mutations.
             # the problem with our previous annealing program was that is could only move two tiles at a time, but here that behavior fits well
             # as we only want to make small purturbations with annealing and the large rearrangements are left to the crossing algorithm
-            return
+            self.grid = self.grid # update later
     
     def cross(self, parent1:int, parent2:int): # this function crosses two parent chromoseoms to create a child
         '''
@@ -416,50 +418,49 @@ class Geonome:
             1.  again, look for adjacencies with placed tiles. This time, if none exist then choose a random sample of tiles, compute the scores, choose the best match, and place.
             3. run a few iterations of simulated annealing to mutate the array (low initial tempurature)
         '''
-
         parent1 = self.chromosomes[parent1]
         parent2 = self.chromosomes[parent2]
 
         # create the offspring according to the algorithm
         child = self.Child(parent1,parent2, self)
 
-        # first step is to check if both parents share any common adjacencies. Easist way to do this is probably to iterate through one parent
-
-
-
-        while child.num_used_tiles < self.num_tiles:
-            self.chromosomes.append(child.mutate())
-            self.num_chromosomes += 1
+        self.chromosomes.append(child.grid) # add the child to the chromosomes
+        self.num_chromosomes += 1
 
 geonome = Geonome([np.arange(0,64,1).reshape((8,8))],tiles) # the collection of chromosomes; a list of arrays
 
 '''
 Generate Random Chromosomes (members of the solution space)
 '''
-num_chromosomes = 1000
+num_chromosomes = 10 # should set to 1000
 
 for _ in range(num_chromosomes):
-    geonome.chromosomes.append(np.random.permutation(geonome[0])) # takes in the array and randomly permutes the elements - this will generate our initial chromosomes.
-
+    geonome.chromosomes.append(np.random.permutation(geonome.chromosomes[0])) # takes in the array and randomly permutes the elements - this will generate our initial chromosomes.
+geonome.num_chromosomes = num_chromosomes
 
 '''
 complete the solver
 '''
 
-num_generations = 100
+num_generations = 1
 num_initial_parents_per_gen = 4
 
-for _ in range(num_chromosomes):
-    geonome.chromosomes = geonome.n_most_fit(num_initial_parents_per_gen)
-    geonome.num_chromosomes = num_initial_parents_per_gen
-    while geonome.num_chromosomes < num_chromosomes:
-        parent1 = np.random.randint(0,num_initial_parents_per_gen)
-        parent2 = np.random.randint(0,num_initial_parents_per_gen)
-        count = 0
-        while parent1 == parent2 and count < 10: # prevent inbreeding
-            count += 1 # prevents stalling here indefinately; if one repeat gets through it won't really hurt anything
-            parent2 = np.random.randint(0,num_initial_parents_per_gen) # Since mutations will be introduced, inbreeding actually serves to preserve a parent with small modificatons; though given the way the current crossing algorithm works, I don't think that we should admit repeats
-        geonome.cross(parent1,parent2) # appends a child to the list of chromosomes
+generation = 0
+
+while generation < num_generations:
+    for _ in range(num_chromosomes):
+        geonome.chromosomes = geonome.n_most_fit(num_initial_parents_per_gen) # get the initial parents
+        geonome.num_chromosomes = num_initial_parents_per_gen
+        while geonome.num_chromosomes < num_chromosomes:
+            print(f"generation: {generation}, chromosome count: {geonome.num_chromosomes}") # to see progress, mainly for debugging
+            parent1 = np.random.randint(0,num_initial_parents_per_gen)
+            parent2 = np.random.randint(0,num_initial_parents_per_gen)
+            count = 0
+            while parent1 == parent2 and count < 10: # prevent inbreeding
+                count += 1 # prevents stalling here indefinately; if one repeat gets through it won't really hurt anything
+                parent2 = np.random.randint(0,num_initial_parents_per_gen) # Since mutations will be introduced, inbreeding actually serves to preserve a parent with small modificatons; though given the way the current crossing algorithm works, I don't think that we should admit repeats
+            geonome.cross(parent1,parent2) # appends a child to the list of chromosomes
+    generation += 1
 
 '''
 Now we have a selection 1000 crossbred products; we return the one with the best fitness
