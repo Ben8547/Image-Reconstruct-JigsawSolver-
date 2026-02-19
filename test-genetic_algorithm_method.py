@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
+from time import sleep
 
 '''
 Setup
@@ -198,15 +199,16 @@ class Geonome:
 
         if np.random.random() < boltzmann_factor: # always except whern previous >= new, sometimes accept an increase in the nergy - dig out of local minima.
             #print("accepted") # debug
-            return new_grid
-        else: return chromosome
+            return new_grid, new_energy
+        else: return chromosome, previous_energy
     
     def anneal(self, chromosome):
         '''apply simulated annealing to a single chromosome'''
         T = self.T0
         while T > 1.:
-            chromosome = self.markovStep(chromosome,T)
+            chromosome, energy = self.markovStep(chromosome,T)
             T *= self.temp_decay
+            print(f"Energy: {energy}, Temperature: {T}") # to view progress, not vital
         return chromosome # should mutate in place, but I'll return for asureadness
     
     def anneal_all(self):
@@ -579,6 +581,9 @@ for _ in range(num_chromosomes_to_seed_with):
     geonome.chromosomes.append(np.random.permutation(geonome.chromosomes[0].ravel()).reshape(geonome.chromosomes[0].shape)) # takes in the array and randomly permutes the elements - this will generate our initial chromosomes.
 geonome.num_chromosomes = num_chromosomes_to_seed_with
 
+geonome.anneal_all() # replace all of the chromosome with the annealed version
+print("initial annealing complete")
+
 '''
 complete the solver
 '''
@@ -590,6 +595,8 @@ generation = 1
 
 while generation <= num_generations:
     geonome.chromosomes = geonome.n_most_fit(num_initial_parents_per_gen) # get the initial parents
+    print(f"Best starting energy of generation {generation} is {geonome.fitness(-1)}")
+    sleep(1) # give time to read - should comment out if not watchin
     geonome.num_chromosomes = num_initial_parents_per_gen
     while geonome.num_chromosomes < num_chromosomes:
         print(f"generation: {generation}, chromosome count: {geonome.num_chromosomes}") # to see progress, mainly for debugging
@@ -606,7 +613,11 @@ while generation <= num_generations:
 Now we have a selection 1000 crossbred products; we return the one with the best fitness
 '''
 
-best_child = geonome.n_most_fit(1)[0]
+best_child = geonome.n_most_fit(1)[0] # this also order the chromosomes from least to most fit so we can get the fitness by just appling class fitness function to the last chromosome
+final_energy = -geonome.fitness(-1)
+
+print(f"final energy: {final_energy}")
+
 
 # now we need to reassemble the image
 resotred_page = np.zeros((length,width))
@@ -617,5 +628,5 @@ for i in range(geonome.grid_shape[0]):
         resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = geonome.tile_data[dict_index]["entire"]
 
 plt.imshow(resotred_page)
-cv2.imwrite(f"test_output_{generation}-Generations.jpg", resotred_page)
+cv2.imwrite(f"test_output_{generation-1}-Generations.jpg", resotred_page)
 plt.show()
