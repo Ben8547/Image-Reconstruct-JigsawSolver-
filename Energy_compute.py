@@ -116,4 +116,4 @@ if __name__ == "__main__":
     print(compute_energy(file = "Squirrel_Puzzle.jpg", color=True, energyFunction = compatability))
     print(compute_energy("test.jpg"))
     print(compute_energy("Original_RainbowFlower.jpg"))
-    print(compute_energy("annealing-color.jpg.jpg"))
+    print(compute_energy("annealing-color.jpg"))

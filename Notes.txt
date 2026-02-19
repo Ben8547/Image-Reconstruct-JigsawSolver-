@@ -39,3 +39,6 @@ Another issue that I thing plagues this particular application and not the puzzl
 2-19-2026 12:14 : Decided to change the computability functions to intake colored images. I want to see if this helps with the white space problem or if it makes solving puzzles like the flower and the squirrel easier.
 
 2-19-2026 1:31 : Implemented a color version for simulated annealing. It just tries to put similar colors together so you get clumps of red and clumps of blue and that's it. It doesn't actually try to preserve the structure.
+
+2-19-2026 2:05 : Implemented an energy computer; my suspicion that some randomized images have lower energies than the originals using the similar difference norm is True. We thus need to revise our energy function.
+
