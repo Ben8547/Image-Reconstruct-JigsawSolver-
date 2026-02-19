@@ -39,10 +39,25 @@ if False: # test of loading the files into numpy
 
 # tests show that the each element of the array is a pixel so if we can figure out where the cut are pixelwise it should be easy to disect the image into pieces
 
+'''Deicde color or non-color'''
+
+color = True
+
 '''Load in the test file (permanent)'''
-file = "Original_RainbowFlower.jpg"
-gray_matrix = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
-#print(gray_matrix)
+
+file = "Original_Squirrel.jpg"
+
+if color:
+    color_volume = cv2.imread(file, cv2.IMREAD_COLOR)
+    #print(color_volume)
+    #print(color_volume.shape)
+    '''
+    This outputs a 3 dimensional array: (hight, width, 3)
+    We will need to store data differently taking this into account.
+    '''
+else:
+    gray_matrix = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
+    #print(gray_matrix)
 
 if False:  # test disection
     first_cut = gray_matrix[7*264:8*264,176*7:176*8]
@@ -56,25 +71,43 @@ if False:  # test disection
 Now we disect each tile and save it's boarder vectors in a list of dictionaries.
 The  dictionaries will contain labels "top", "bottom", "left", "right"
 '''
-width = gray_matrix.shape[1] # horizontal distance - should be the shoter of the two
-length = gray_matrix.shape[0]
-tile_width = width//8
-tile_length = length//8
-#print(tile_length)
-
 tiles = []
 
-for i in range(8):
-    for j in range(8):
-        tiles.append({
-            "top": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j],
-            "bottom": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1],
-            "left": gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)],
-            "right": gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
-            "entire": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] # need this last one to reconstruct the array later
-        })
+if not color:
+    width = gray_matrix.shape[1] # horizontal distance - should be the shoter of the two
+    length = gray_matrix.shape[0]
+    tile_width = width//8
+    tile_length = length//8
+    #print(tile_length)
 
-del gray_matrix # no need to store a large matrix any longer than we need it. We only need the boarders anyway
+    for i in range(8):
+        for j in range(8):
+            tiles.append({
+                "top": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j],
+                "bottom": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1],
+                "left": gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)],
+                "right": gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
+                "entire": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] # need this last one to reconstruct the array later
+            })
+    del gray_matrix # no need to store a large matrix any longer than we need it. We only need the boarders anyway
+else:
+    width = color_volume.shape[1] # horizontal distance - should be the shoter of the two
+    length = color_volume.shape[0]
+    tile_width = width//8
+    tile_length = length//8
+    #print(tile_length)
+
+    for i in range(8):
+        for j in range(8):
+            tiles.append({
+                "top": color_volume[tile_length*i:tile_length*(i+1),tile_width*j,:],
+                "bottom": color_volume[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1,:],
+                "left": color_volume[tile_length*i,tile_width*j:tile_width*(j+1),:],
+                "right": color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1),:],
+                "entire": color_volume[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] # need this last one to reconstruct the array later
+            })
+
+    del color_volume # no need to store a large matrix any longer than we need it. We only need the boarders anyway
 
 '''
 Now we need to construct an energy function for the system.
@@ -96,8 +129,12 @@ grid = np.arange(0,64,1).reshape((8,8))
 
 from numpy.linalg import norm
 
-#compatability = lambda x,y: norm(x-y)
-compatability = lambda x,y: norm(x-y)
+if color:
+    #compatability = lambda x,y: norm(x-y)
+    compatability = lambda x,y: norm(x-y)
+else:
+    #compatability = lambda x,y: norm(x-y)
+    compatability = lambda x,y: norm(x-y)
 
 class simulation_grid: # the grid defined above is a member of this class when combined with it's list of dictionaries, these are utility functions to use on the simulation grid
     def __init__(self, grid, dict_list):
@@ -241,16 +278,26 @@ class simulation_grid: # the grid defined above is a member of this class when c
 
 page = simulation_grid(grid,tiles)
 
-restored = page.reconstruct_page(0.9999,200.)
+restored = page.reconstruct_page(0.9999,10.) # 0.9999, 200.
 
 '''Now that we have the ordered array, all that remains is to put the grayscale map back together.'''
 
-resotred_page = np.zeros((length,width))
+if color:
+    resotred_page = np.zeros((length,width,3))
 
-for i in range(page.grid_shape[0]):
-    for j in range(page.grid_shape[1]):
-        dict_index = restored[i,j]
-        resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = page.tile_data[dict_index]["entire"]
+    for i in range(page.grid_shape[0]):
+        for j in range(page.grid_shape[1]):
+            dict_index = restored[i,j]
+            resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] = page.tile_data[dict_index]["entire"]
+    cv2.imwrite(f"annealing-color.jpg", resotred_page)
+else:
+    resotred_page = np.zeros((length,width))
+
+    for i in range(page.grid_shape[0]):
+        for j in range(page.grid_shape[1]):
+            dict_index = restored[i,j]
+            resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = page.tile_data[dict_index]["entire"]
+        cv2.imwrite(f"annealing-grayscale.jpg", resotred_page)
 
 plt.imshow(resotred_page)
 plt.show()
