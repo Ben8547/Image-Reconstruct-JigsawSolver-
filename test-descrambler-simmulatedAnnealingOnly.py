@@ -45,7 +45,7 @@ color = True
 
 '''Load in the test file (permanent)'''
 
-file = "Original_Squirrel.jpg"
+file = "Original_RainbowFlower.jpg"
 
 if color:
     color_volume = cv2.imread(file, cv2.IMREAD_COLOR)
@@ -211,7 +211,7 @@ class simulation_grid: # the grid defined above is a member of this class when c
             3. replace the current solution with a random permutation - this allows for a quick escape of a minimum if we are stuck; but requires getting fairly luck so might not be worth it
         Hopefully this provides enough extra ways of purturbing the system that we can search the solution space more efficiently.
         '''
-        choice = np.random.randint(0,3)
+        choice = np.random.randint(0,2)
         new_grid = np.copy(self.simGrid) # grid to store the purtubation in
         if choice == 0:
             while (point1 == point2) and (count < 10): # ensures (to an reasonable extent) that we swap two distinct points
@@ -238,7 +238,7 @@ class simulation_grid: # the grid defined above is a member of this class when c
                 new_grid[:,:col] = self.simGrid[:,-col:] # sets the first n rows equal the last n rows
                 del col
 
-        elif choice == 2: # rotate the pieces
+        elif choice == 2: # rotate the pieces; currently off - seems like it would be difficult to recompute the energy in this case
             index = np.random.randint(1,self.grid_shape[1]) # needs to be square so we only use one index
             if np.random.randint(0,2) == 0:
                 new_grid[:index,:index] = np.rot90(new_grid[:index,:index])
@@ -289,7 +289,10 @@ if color:
         for j in range(page.grid_shape[1]):
             dict_index = restored[i,j]
             resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] = page.tile_data[dict_index]["entire"]
+
+    resotred_page.astype(np.int8) # jpg can only handle this resolution anyway
     cv2.imwrite(f"annealing-color.jpg", resotred_page)
+    resotred_page /= 255. # scale to the interval [0,1]; required for imshow
 else:
     resotred_page = np.zeros((length,width))
 
