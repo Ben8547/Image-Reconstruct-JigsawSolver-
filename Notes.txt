@@ -12,3 +12,4 @@
 2-18-2026 14:53 : Back to working on the genetic algorithm.
 
 2-18-2026 17:33 : simplified crossing algorithm sans the mutations is not complete. Will run a small trial to fish for bugs
+
