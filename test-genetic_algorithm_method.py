@@ -35,7 +35,7 @@ del gray_matrix
 Genetic algorithm
 '''
 
-compatability = lambda x,y: -np.linalg.norm(x-y) # we are trying to maximize the fitness, so we return the negative since energy is minimized
+compatability = lambda x,y: np.linalg.norm(x-y) # we are trying to maximize the fitness, so we return the negative since energy is minimized
 
 class Geonome:
     def __init__(self, grid_list, dict_list):
@@ -107,7 +107,7 @@ class Geonome:
         for i in range(self.num_chromosomes):
             list_of_fitnesses.append(self.fitness(i))
         self.chromosomes = [self.chromosomes[i] for i in np.argsort(list_of_fitnesses)] # order the chromosomes from least fit to most fit
-        return self.chromosomes[-n-1:-1] # return the last n items of the list; will fail if n > length of chromosomes hence the earlier error message
+        return self.chromosomes[-n-1:] # return the last n items of the list; will fail if n > length of chromosomes hence the earlier error message
     
     def fitness(self,i:int): #This method is analagous to the energy function in simmulated annealing
         chromosome = self.chromosomes[i]
@@ -117,7 +117,7 @@ class Geonome:
                 # we don't want to double count interactions so we first only compute the energies to the left and obove each point (skipping the topmost and leftmost row/column)
                 # then since the edges do not interact we can stop here since each interacting edge has been counted exactly once.
                 energy += self.interaction_energy(chromosome,(i,j))
-        return energy
+        return -energy
     
     def energy(self, grid): # just negative fitness, but allows passing a grid and not just an index so can effect non-chromosome arrays
         chromosome = grid
@@ -127,7 +127,7 @@ class Geonome:
                 # we don't want to double count interactions so we first only compute the energies to the left and obove each point (skipping the topmost and leftmost row/column)
                 # then since the edges do not interact we can stop here since each interacting edge has been counted exactly once.
                 energy += self.interaction_energy(chromosome,(i,j))
-        return -energy
+        return energy
     
     def interaction_energy(self, simGrid, grid_point:tuple) -> float:
         '''simGrid is an artifact from this begin from the simmulated annealing trials - it is an indevidual chromosome in this class'''
@@ -575,7 +575,7 @@ num_chromosomes = 1000 # should set to 1000
     geonome.chromosomes.append(np.random.permutation(geonome.chromosomes[0].ravel()).reshape(geonome.chromosomes[0].shape)) # takes in the array and randomly permutes the elements - this will generate our initial chromosomes.
 geonome.num_chromosomes = num_chromosomes''' # method that the paper uses; I think I can do better by seeding with simulated annealing
 
-num_chromosomes_to_seed_with = 10
+num_chromosomes_to_seed_with = 4 #10
 
 for _ in range(num_chromosomes_to_seed_with):
     geonome.chromosomes.append(np.random.permutation(geonome.chromosomes[0].ravel()).reshape(geonome.chromosomes[0].shape)) # takes in the array and randomly permutes the elements - this will generate our initial chromosomes.
@@ -589,15 +589,16 @@ complete the solver
 '''
 
 num_generations = 5 # should set to 100
-num_initial_parents_per_gen = 4
+num_initial_parents_per_gen = 4 # should set to 4
 
 generation = 1
 
 while generation <= num_generations:
     geonome.chromosomes = geonome.n_most_fit(num_initial_parents_per_gen) # get the initial parents
-    print(f"Best starting energy of generation {generation} is {geonome.fitness(-1)}")
-    sleep(1) # give time to read - should comment out if not watchin
-    geonome.num_chromosomes = num_initial_parents_per_gen
+    geonome.num_chromosomes = len(geonome.chromosomes)
+    print(f"Best starting energy of generation {generation} is {-geonome.fitness(-1)}")
+    print(f"Worst starting energy of generation {generation} is {-geonome.fitness(0)}")
+    sleep(2) # give time to read - should comment out if not watching
     while geonome.num_chromosomes < num_chromosomes:
         print(f"generation: {generation}, chromosome count: {geonome.num_chromosomes}") # to see progress, mainly for debugging
         parent1 = np.random.randint(0,num_initial_parents_per_gen)
