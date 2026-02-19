@@ -143,6 +143,8 @@ class simulation_grid: # the grid defined above is a member of this class when c
         self.tile_data = dict_list
         self.grid_shape = self.simGrid.shape
         self.energy = self.total_energy() # set the total energy on creating the class
+        self.directions = ['top', 'bottom', 'left', 'right']
+        self.complementary_directions = { "top":"bottom", "bottom":"top", "left":"right", "right":"left"  }
 
     def total_energy(self):
         energy = 0.
@@ -220,11 +222,34 @@ class simulation_grid: # the grid defined above is a member of this class when c
                 count += 1
             del count # no reason to keep it about 
 
+            '''computing the interaition energies before the swap'''
+            '''note to self - need a special case if point1 and 2 are neighbors so that we don't double count the interaction inbetween them'''
+            '''also need cases for when the points are on edges'''
+            # first we tabulate the valid neighbors of points 1 and 2: we start by making a list of all of the neighbors. The order of the neighbours will go top, bottom, left, right with None meaning that there is an edge in that direction
+
+            previous_energy_contribution = 0.
+            new_energy_contribution = 0.
+            p1 = self.simGrid[point1[0],point1[1]]
+            p2 = self.simGrid[point2[0],point2[1]]
+
+            def local_energy(point):
+                for d in self.directions:
+                    if d == "top":
+
+                    elif d == "bottom":
+                    
+                    elif d == "left":
+
+                    elif d == "right":
+
+                return
+
             #replace the points in a new grid
             #temp_save = new_grid[point1] # there was no reason to ever do this - it's stored in the old grid still...
             new_grid[point1] = new_grid[point2]
             new_grid[point2] = self.simGrid[point1]
-            #print(new_grid - self.simGrid) # debug
+
+            energy_change = new_energy_contribution - previous_energy_contribution
 
         elif choice == 1: # swap sides of grid
             if np.random.randint(0,2) == 0: # choose row
@@ -239,6 +264,7 @@ class simulation_grid: # the grid defined above is a member of this class when c
                 del col
 
         elif choice == 2: # rotate the pieces; currently off - seems like it would be difficult to recompute the energy in this case
+            raise(PermissionError) # the energy update is not written for this block
             index = np.random.randint(1,self.grid_shape[1]) # needs to be square so we only use one index
             if np.random.randint(0,2) == 0:
                 new_grid[:index,:index] = np.rot90(new_grid[:index,:index])
@@ -254,18 +280,18 @@ class simulation_grid: # the grid defined above is a member of this class when c
 
         new = simulation_grid(new_grid,self.tile_data) # do this so that we can use the total energy function; probly not as quick as just writing a separate function, but saves me a lot of work
 
-        previous_energy = self.energy
-        new_energy = new.total_energy()
+        #new_energy = new.total_energy() # this is slow, I'm moving this into the if-elif block above. Instead we just recompute the neigbors that change; this is more efficient
         del new # no reason to keep it around, the class stores a lot of redundant information
         #print(previous_energy) # debug
         #print(new_energy) # debug
 
-        boltzmann_factor = np.exp((previous_energy - new_energy) / tempurature)
+        boltzmann_factor = np.exp((-energy_change) / tempurature)
 
         if np.random.random() < boltzmann_factor: # always except whern previous >= new, sometimes accept an increase in the nergy - dig out of local minima.
             #print("accepted") # debug
             self.simGrid = new_grid
-            self.energy = new_energy
+            self.energy += energy_change
+        # no need for an else statement because nothing changes otherwise
     
     def reconstruct_page(self,schedule_constant:float, T0:float):
         # essentially just repeat the markov step while updating the tempurature.
@@ -290,7 +316,7 @@ if color:
             dict_index = restored[i,j]
             resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] = page.tile_data[dict_index]["entire"]
 
-    resotred_page.astype(np.int8) # jpg can only handle this resolution anyway
+    resotred_page = resotred_page.astype(np.int8) # jpg can only handle this resolution anyway
     cv2.imwrite(f"annealing-color.jpg", resotred_page)
     resotred_page /= 255. # scale to the interval [0,1]; required for imshow
 else:
