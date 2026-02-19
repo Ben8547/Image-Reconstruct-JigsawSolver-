@@ -40,5 +40,5 @@ Another issue that I thing plagues this particular application and not the puzzl
 
 2-19-2026 1:31 : Implemented a color version for simulated annealing. It just tries to put similar colors together so you get clumps of red and clumps of blue and that's it. It doesn't actually try to preserve the structure.
 
-2-19-2026 2:05 : Implemented an energy computer; my suspicion that some randomized images have lower energies than the originals using the similar difference norm is True. We thus need to revise our energy function.
+2-19-2026 2:05 : Implemented an energy computer; my suspicion that some randomized images have lower energies than the originals using the similar difference norm is True. We thus need to revise our energy function. It has also been pointed out to me that in my Markov chain I recompute the energies each time, but it would be much quicker to simply recompute the few affected terms. Thus I will work on implementing that next.
 
