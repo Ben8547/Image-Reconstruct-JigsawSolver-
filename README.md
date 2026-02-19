@@ -1,4 +1,4 @@
-My take on the jigsaw problem. Here I use the example of a scrambled grayscale comicbook page.
+My take on the jigsaw problem. **This is project is currently a work in progress**.
 
 Each file represents an implementation of a distinct method.
 
