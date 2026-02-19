@@ -368,7 +368,7 @@ class simulation_grid: # the grid defined above is a member of this class when c
 
 page = simulation_grid(grid,tiles)
 
-restored = page.reconstruct_page(0.9999,10.) # 0.9999, 200.
+restored = page.reconstruct_page(0.9999,100.) # 0.9999, 200.
 
 '''Now that we have the ordered array, all that remains is to put the grayscale map back together.'''
 

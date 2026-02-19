@@ -44,3 +44,5 @@ Another issue that I thing plagues this particular application and not the puzzl
 
 2-19-2026 18:09 : I spuddled on improving the computational efficiency of the Markov step; tried to only recalculate local energies. I wrote a bunch of code, but ended up with negative energies which should not be possible. Thus I gave up after several hours and commented out what I wrote and went back to global energy calc. If we want to solve larger puzzles at some point I need to revisit this. In other news, using the L2 norm, the squirrel puzzle has lower energy than the original. When I switched to np.mean((x-y)**2) the original now has lower energy. This is ideal so I am changing the energy function to this permanently (unless I find a better energy function).
 
+2-19-2026 
+

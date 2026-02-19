@@ -7,29 +7,63 @@ from time import sleep
 Setup
 '''
 
-gray_matrix = cv2.imread("Squirrel_Puzzle.jpg", cv2.IMREAD_GRAYSCALE) # load in the file
+'''Deicde color or non-color'''
+
+color = False
+
+'''Load in the test file (permanent)'''
+
+file = "test.jpg"
+
+if color:
+    color_volume = cv2.imread(file, cv2.IMREAD_COLOR)
+    '''
+    This outputs a 3 dimensional array: (hight, width, 3)
+    We will need to store data differently taking this into account.
+    '''
+else:
+    gray_matrix = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
+    #print(gray_matrix)
 
 '''Chop up the image'''
 
-width = gray_matrix.shape[1] # horizontal distance
-length = gray_matrix.shape[0] # vertical distance; number of rows
-tile_width = width//8
-tile_length = length//8
-
 tiles = []
 
-for i in range(8):
-    for j in range(8):
-        tiles.append({
-            "top": gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)],
-            "bottom": gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
-            "left": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j],
-            "right": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1],
-            "entire": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] # need this last one to reconstruct the array later
-        })
+if not color:
+    width = gray_matrix.shape[1] # horizontal distance - should be the shoter of the two
+    length = gray_matrix.shape[0]
+    tile_width = width//8
+    tile_length = length//8
+    #print(tile_length)
 
-del gray_matrix
+    for i in range(8):
+        for j in range(8):
+            tiles.append({
+                "top": gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)],
+                "bottom": gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
+                "left": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j],
+                "right": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1],
+                "entire": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] # need this last one to reconstruct the array later
+            })
+    del gray_matrix # no need to store a large matrix any longer than we need it. We only need the boarders anyway
+else:
+    width = color_volume.shape[1] # horizontal distance - should be the shoter of the two
+    length = color_volume.shape[0]
+    tile_width = width//8
+    tile_length = length//8
+    #print(tile_length)
 
+    for i in range(8):
+        for j in range(8):
+            tiles.append({
+                "top": color_volume[tile_length*i,tile_width*j:tile_width*(j+1),:],
+                "bottom": color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1),:],
+                "left": color_volume[tile_length*i:tile_length*(i+1),tile_width*j,:],
+                "right": color_volume[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1,:],
+                "entire": color_volume[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] # need this last one to reconstruct the array later
+            })
+
+    del color_volume # no need to store a large matrix any longer than we need it. We only need the boarders anyway
 
 '''
 Genetic algorithm
@@ -37,7 +71,7 @@ Genetic algorithm
 
 compatability = lambda x,y: np.mean((x-y)**2)#np.linalg.norm(x-y) # we are trying to maximize the fitness, so we return the negative since energy is minimized
 
-class Geonome:
+class Genome:
     def __init__(self, grid_list, dict_list):
         self.complementary_directions = { "top":"bottom", "bottom":"top", "left":"right", "right":"left"  }
         self.T0 = 200. # for annealing
@@ -52,7 +86,7 @@ class Geonome:
         '''Now, when the class is defined, we compute all of the "best buddy" pieces. Since this is only dependent on the dict_list which does not mutate, we can do it once and leave it.'''
         #self.compatability_lists = self.generate_compatability_list()
         #self.best_buddies = self.find_best_buddies()
-        #print('completed initialization of the geonome')
+        #print('completed initialization of the genome')
 
     def n_most_fit(self,n:int):
         if n > self.num_chromosomes:
@@ -173,7 +207,7 @@ class Geonome:
     
     class Child:
         def __init__(self, parent1, parent2, outerself):
-            self.outerself = outerself # "self" from the geonome class; allows us to access everything like the tile_data list and compatability_lists 
+            self.outerself = outerself # "self" from the genome class; allows us to access everything like the tile_data list and compatability_lists 
             self.mutation_probability = outerself.mutation_probability
             self.mutation_T0 = 50.
             self.mutation_decay = 0.95
@@ -536,7 +570,7 @@ class Geonome:
         self.chromosomes.append(child.grid) # add the child to the chromosomes
         self.num_chromosomes += 1
 
-geonome = Geonome([np.arange(0,64,1,dtype=np.uint8).reshape((8,8))],tiles) # the collection of chromosomes; a list of arrays; jpg can only support int 8 so no need to use anything fancier
+genome = Genome([np.arange(0,64,1,dtype=np.uint8).reshape((8,8))],tiles) # the collection of chromosomes; a list of arrays; jpg can only support int 8 so no need to use anything fancier
 
 '''
 Generate Random Chromosomes (members of the solution space)
@@ -544,61 +578,74 @@ Generate Random Chromosomes (members of the solution space)
 num_chromosomes = 500 # should set to 1000
 
 '''for _ in range(num_chromosomes):
-    geonome.chromosomes.append(np.random.permutation(geonome.chromosomes[0].ravel()).reshape(geonome.chromosomes[0].shape)) # takes in the array and randomly permutes the elements - this will generate our initial chromosomes.
-geonome.num_chromosomes = num_chromosomes''' # method that the paper uses; I think I can do better by seeding with simulated annealing
+    genome.chromosomes.append(np.random.permutation(genome.chromosomes[0].ravel()).reshape(genome.chromosomes[0].shape)) # takes in the array and randomly permutes the elements - this will generate our initial chromosomes.
+genome.num_chromosomes = num_chromosomes''' # method that the paper uses; I think I can do better by seeding with simulated annealing
 
 num_chromosomes_to_seed_with = 10 #10
 
 for _ in range(num_chromosomes_to_seed_with):
-    geonome.chromosomes.append(np.random.permutation(geonome.chromosomes[0].ravel()).reshape(geonome.chromosomes[0].shape)) # takes in the array and randomly permutes the elements - this will generate our initial chromosomes.
-geonome.num_chromosomes = num_chromosomes_to_seed_with
+    genome.chromosomes.append(np.random.permutation(genome.chromosomes[0].ravel()).reshape(genome.chromosomes[0].shape)) # takes in the array and randomly permutes the elements - this will generate our initial chromosomes.
+genome.num_chromosomes = num_chromosomes_to_seed_with
 
-geonome.anneal_all() # replace all of the chromosome with the annealed version
+genome.anneal_all() # replace all of the chromosome with the annealed version
 print("initial annealing complete")
 
 '''
 complete the solver
 '''
 
-num_generations = 101 # should set to 100
+num_generations = 10 # should set to 100
 num_initial_parents_per_gen = 4 # should set to 4
 
 generation = 1
 
 while generation <= num_generations:
-    geonome.chromosomes = geonome.n_most_fit(num_initial_parents_per_gen) # get the initial parents
-    geonome.num_chromosomes = len(geonome.chromosomes)
-    print(f"Best starting energy of generation {generation} is {-geonome.fitness(-1)}")
-    print(f"Worst starting energy of generation {generation} is {-geonome.fitness(0)}")
+    genome.chromosomes = genome.n_most_fit(num_initial_parents_per_gen) # get the initial parents
+    genome.num_chromosomes = len(genome.chromosomes)
+    print(f"Best starting energy of generation {generation} is {-genome.fitness(-1)}")
+    print(f"Worst starting energy of generation {generation} is {-genome.fitness(0)}")
     sleep(2) # give time to read - should comment out if not watching
-    while geonome.num_chromosomes < num_chromosomes:
-        print(f"generation: {generation}, chromosome count: {geonome.num_chromosomes}") # to see progress, mainly for debugging
+    while genome.num_chromosomes < num_chromosomes:
+        print(f"generation: {generation}, chromosome count: {genome.num_chromosomes}") # to see progress, mainly for debugging
         parent1 = np.random.randint(0,num_initial_parents_per_gen)
         parent2 = np.random.randint(0,num_initial_parents_per_gen)
         count = 0
         while parent1 == parent2 and count < 10: # prevent inbreeding
             count += 1 # prevents stalling here indefinately; if one repeat gets through it won't really hurt anything
             parent2 = np.random.randint(0,num_initial_parents_per_gen) # Since mutations will be introduced, inbreeding actually serves to preserve a parent with small modificatons; though given the way the current crossing algorithm works, I don't think that we should admit repeats
-        geonome.cross(parent1,parent2) # appends a child to the list of chromosomes
+        genome.cross(parent1,parent2) # appends a child to the list of chromosomes
     generation += 1
 
 '''
 Now we have a selection 1000 crossbred products; we return the one with the best fitness
 '''
 
-best_child = geonome.n_most_fit(1)[0] # this also order the chromosomes from least to most fit so we can get the fitness by just appling class fitness function to the last chromosome
-final_energy = -geonome.fitness(-1)
+best_child = genome.n_most_fit(1)[0] # this also order the chromosomes from least to most fit so we can get the fitness by just appling class fitness function to the last chromosome
+final_energy = -genome.fitness(-1)
 
 print(f"final energy: {final_energy}")
 
 
 # now we need to reassemble the image
-resotred_page = np.zeros((length,width))
+if color:
+    resotred_page = np.zeros((length,width,3))
 
-for i in range(geonome.grid_shape[0]):
-    for j in range(geonome.grid_shape[1]):
-        dict_index = best_child[i,j]
-        resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = geonome.tile_data[dict_index]["entire"]
+    for i in range(genome.grid_shape[0]):
+        for j in range(genome.grid_shape[1]):
+            dict_index = best_child[i,j]
+            resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] = genome.tile_data[dict_index]["entire"]
+
+    resotred_page = resotred_page.astype(np.uint8) # jpg can only handle this resolution anyway
+    cv2.imwrite(f"genetic-color.jpg", resotred_page)
+else:
+    resotred_page = np.zeros((length,width))
+
+    for i in range(genome.grid_shape[0]):
+        for j in range(genome.grid_shape[1]):
+            dict_index = best_child[i,j]
+            resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = genome.tile_data[dict_index]["entire"]
+        cv2.imwrite(f"genetic-grayscale.jpg", resotred_page)
+        
 
 plt.imshow(resotred_page)
 resotred_page.astype(np.uint8) # so that cv2 doesn't have to compress anything
