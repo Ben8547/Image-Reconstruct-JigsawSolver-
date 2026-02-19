@@ -7,7 +7,7 @@ from time import sleep
 Setup
 '''
 
-gray_matrix = cv2.imread("test.jpg", cv2.IMREAD_GRAYSCALE) # load in the file
+gray_matrix = cv2.imread("Squirrel_Puzzle.jpg", cv2.IMREAD_GRAYSCALE) # load in the file
 
 '''Chop up the image'''
 
@@ -48,6 +48,7 @@ class Geonome:
         self.num_tiles = len(dict_list)
         self.tile_data = dict_list
         self.grid_shape = grid_list[0].shape
+        self.mutation_probability = 1./1000. # i.e. one in 1000 additions will be random
         '''Now, when the class is defined, we compute all of the "best buddy" pieces. Since this is only dependent on the dict_list which does not mutate, we can do it once and leave it.'''
         #self.compatability_lists = self.generate_compatability_list()
         #self.best_buddies = self.find_best_buddies()
@@ -107,7 +108,7 @@ class Geonome:
         for i in range(self.num_chromosomes):
             list_of_fitnesses.append(self.fitness(i))
         self.chromosomes = [self.chromosomes[i] for i in np.argsort(list_of_fitnesses)] # order the chromosomes from least fit to most fit
-        return self.chromosomes[-n-1:] # return the last n items of the list; will fail if n > length of chromosomes hence the earlier error message
+        return self.chromosomes[-n:] # return the last n items of the list; will fail if n > length of chromosomes hence the earlier error message
     
     def fitness(self,i:int): #This method is analagous to the energy function in simmulated annealing
         chromosome = self.chromosomes[i]
@@ -202,23 +203,26 @@ class Geonome:
             return new_grid, new_energy
         else: return chromosome, previous_energy
     
-    def anneal(self, chromosome):
+    def anneal(self, chromosome, T0, decay_rate):
         '''apply simulated annealing to a single chromosome'''
-        T = self.T0
+        T = T0
         while T > 1.:
             chromosome, energy = self.markovStep(chromosome,T)
-            T *= self.temp_decay
+            T *= decay_rate
             print(f"Energy: {energy}, Temperature: {T}") # to view progress, not vital
         return chromosome # should mutate in place, but I'll return for asureadness
     
     def anneal_all(self):
         ''' Take all of the chromosomes and run them through simmulated annealing, then replace the chromosomes '''
         for i, chromosome in enumerate(self.chromosomes):
-            self.chromosomes[i] = self.anneal(chromosome) # replace the chromosome
+            self.chromosomes[i] = self.anneal(chromosome,self.T0, self.temp_decay) # replace the chromosome
     
     class Child:
         def __init__(self, parent1, parent2, outerself):
             self.outerself = outerself # "self" from the geonome class; allows us to access everything like the tile_data list and compatability_lists 
+            self.mutation_probability = outerself.mutation_probability
+            self.mutation_T0 = 50.
+            self.mutation_decay = 0.95
             self.max_shape = parent1.shape  # maximal dimensions of the child
             self.parents = (parent1,parent2)
             #create the child array. Since we need the initial placement to be anywhere, we will create a 1x1 matrix and then append rows and columns as we go, always preventing the array from being any larger than 8x8 (for the case of development)
@@ -275,19 +279,25 @@ class Geonome:
                             if (repetative_neighbors_dict[direction] != None) and self.check_open_side(m,n,current_shape)[direction]: # requires the element to be open in that direction and for it to actully have a valid neighbor
                                 valid_directions.append(direction)
                         direction = np.random.choice(valid_directions) # choose a random valid direction
+
+                        if np.random.random() < self.mutation_probability: # random mutation
+                            placement = np.random.choice(self.unused_tiles[self.unused_tiles != None])
+                        else:
+                            placement = repetative_neighbors_dict[direction]
+
                         # place the tile in the chosen direction
                         if direction == 'top':
                             if m == 0: # the tile in child is already at the top
                                 self.add_row_above() # we don't need to worry about going over because we ensured that we chose directions open in that orientattion
                                 m += 1
-                            self.grid[m-1,n] = repetative_neighbors_dict[direction] # pace the tile in approprate direction
+                            self.grid[m-1,n] =  placement # pace the tile in approprate direction
                             self.num_used_tiles += 1
                             self.used_tiles.append(self.grid[m-1,n]) # add the used tile to the list
                             self.unused_tiles[self.grid[m-1,n]] = None
                         elif direction == 'bottom':
                             if m == current_shape[0]-1: # the tile in child is already at the bottom
                                 self.add_row_below()
-                            self.grid[m+1,n] = repetative_neighbors_dict[direction] # pace the tile in approprate direction
+                            self.grid[m+1,n] = placement # pace the tile in approprate direction
                             self.num_used_tiles += 1
                             self.used_tiles.append(self.grid[m+1,n]) # add the used tile to the list
                             self.unused_tiles[self.grid[m+1,n]] = None
@@ -295,14 +305,14 @@ class Geonome:
                             if n == 0: # the tile in child is already at the top
                                 self.add_column_left()
                                 n += 1
-                            self.grid[m,n-1] = repetative_neighbors_dict[direction] # pace the tile in approprate direction
+                            self.grid[m,n-1] = placement # pace the tile in approprate direction
                             self.num_used_tiles += 1
                             self.used_tiles.append(self.grid[m,n-1]) # add the used tile to the list
                             self.unused_tiles[self.grid[m,n-1]] = None
                         elif direction == 'right':
                             if n == current_shape[1]-1: # the tile in child is already at the top
                                 self.add_column_right()
-                            self.grid[m,n+1] = repetative_neighbors_dict[direction] # pace the tile in approprate direction
+                            self.grid[m,n+1] = placement # pace the tile in approprate direction
                             self.num_used_tiles += 1
                             self.used_tiles.append(self.grid[m,n+1]) # add the used tile to the list
                             self.unused_tiles[self.grid[m,n+1]] = None
@@ -339,7 +349,7 @@ class Geonome:
                     # get a random sample of unused tiles
                     unused_tile_pure = self.unused_tiles[self.unused_tiles != None]
                     #print(unused_tile_pure) # debug
-                    num_sample = np.min([10, len(unused_tile_pure)]) # by doing this random sampling, it ensures if the most compatable one it not the true fit, we have a chance of still getting the true fit
+                    num_sample = np.min([20, len(unused_tile_pure)]) # by doing this random sampling, it ensures if the most compatable one it not the true fit, we have a chance of still getting the true fit
                     samples = np.random.choice(unused_tile_pure,num_sample,replace=False)
                     max_compatability = (element,-np.inf)
                     for sample_tile in samples:
@@ -350,18 +360,24 @@ class Geonome:
                             max_compatability = (sample_tile,compat)
                     max_compatability = max_compatability[0]
                     # add the chosen neighbor to the child
+
+                    if np.random.random() < self.mutation_probability: # random mutation
+                        placement = np.random.choice(unused_tile_pure)
+                    else:
+                        placement = max_compatability
+
                     if direction == 'top':
                         if m == 0: # the tile in child is already at the top
                             self.add_row_above() # we don't need to worry about going over because we ensured that we chose directions open in that orientattion
                             m += 1
-                        self.grid[m-1,n] = max_compatability # pace the tile in approprate direction
+                        self.grid[m-1,n] = placement # place the tile in approprate direction
                         self.num_used_tiles += 1
                         self.used_tiles.append(self.grid[m-1,n]) # add the used tile to the list
                         self.unused_tiles[self.grid[m-1,n]] = None
                     elif direction == 'bottom':
                         if m == current_shape[0]-1: # the tile in child is already at the bottom
                             self.add_row_below()
-                        self.grid[m+1,n] = max_compatability # pace the tile in approprate direction
+                        self.grid[m+1,n] = placement # place the tile in approprate direction
                         self.num_used_tiles += 1
                         self.used_tiles.append(self.grid[m+1,n]) # add the used tile to the list
                         self.unused_tiles[self.grid[m+1,n]] = None
@@ -369,14 +385,14 @@ class Geonome:
                         if n == 0: # the tile in child is already at the top
                             n += 1
                             self.add_column_left()
-                        self.grid[m,n-1] = max_compatability # pace the tile in approprate direction
+                        self.grid[m,n-1] = placement # place the tile in approprate direction
                         self.num_used_tiles += 1
                         self.used_tiles.append(self.grid[m,n-1]) # add the used tile to the list
                         self.unused_tiles[self.grid[m,n-1]] = None
                     elif direction == 'right':
                         if n == current_shape[1]-1: # the tile in child is already at the top
                             self.add_column_right()
-                        self.grid[m,n+1] = max_compatability # pace the tile in approprate direction
+                        self.grid[m,n+1] = placement # place the tile in approprate direction
                         self.num_used_tiles += 1
                         self.used_tiles.append(self.grid[m,n+1]) # add the used tile to the list
                         self.unused_tiles[self.grid[m,n+1]] = None
@@ -389,7 +405,6 @@ class Geonome:
 
             # end of while loop
             self.mutate() # once all of the tiles have been placed, run the mutation
-
 
 
         def check_open_side(self,row:int, col:int, shape:tuple) -> tuple: # check this function seperately, it works perfectly (see ./python_tests/).
@@ -532,7 +547,10 @@ class Geonome:
             # we can run a few iterations of a simmulated annealing algorithm to approve or reject the mutations.
             # the problem with our previous annealing program was that is could only move two tiles at a time, but here that behavior fits well
             # as we only want to make small purturbations with annealing and the large rearrangements are left to the crossing algorithm
-            self.grid = self.grid # update later
+            if False:
+                self.grid = self.outerself.anneal(self.grid,self.mutation_T0, self.mutation_decay) # seems to add a lot of time for not a whole lot of lot of efficacy
+            pass
+
     
     def cross(self, parent1:int, parent2:int): # this function crosses two parent chromoseoms to create a child
         '''
@@ -629,5 +647,6 @@ for i in range(geonome.grid_shape[0]):
         resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = geonome.tile_data[dict_index]["entire"]
 
 plt.imshow(resotred_page)
+resotred_page.astype(np.int8) # so that cv2 doesn't have to compress anything
 cv2.imwrite(f"test_output_{generation-1}-Generations.jpg", resotred_page)
 plt.show()

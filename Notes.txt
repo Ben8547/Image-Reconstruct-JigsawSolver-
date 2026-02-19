@@ -20,3 +20,10 @@ Another issue that I thing plagues this particular application and not the puzzl
 
 2-19-2026 0:39 : It seems that the fitness function is actually trying to maximize energy, which is certainly not what we want; I keep seeing the energies get father from 0. 
 
+2-19-2026 1:13 : above issue is fixed; though now it is obvious that the genetic algorithm cannot improve upon simulated annealing in its current form.
+
+2-19-2026 1:26 : added a program that can create a puzzle out of any image - I want to see if the white space in the Manga I've been using is a big of an issue as I think it is.
+
+2-19-2026 1:28 : custom squirrel puzzle finished, It doesn't seem to have done any better. I think that I'll add the mutations now and try that instead. Maybe that is the piece that we are missing. (maybe tomorrow actually)
+
+2-19-2026 2:01 : I'll just let it run overnight and see where se get to.
