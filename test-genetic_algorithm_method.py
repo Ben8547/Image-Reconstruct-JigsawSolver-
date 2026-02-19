@@ -39,6 +39,7 @@ compatability = lambda x,y: -np.linalg.norm(x-y) # we are trying to maximize the
 class Geonome:
     def __init__(self, grid_list, dict_list):
         self.complementary_directions = { "top":"bottom", "bottom":"top", "left":"right", "right":"left"  }
+        self.directions = { "top", "bottom", "left", 'right' }
         self.chromosomes = grid_list
         self.num_chromosomes = len(grid_list)
         self.num_tiles = len(dict_list)
@@ -159,32 +160,26 @@ class Geonome:
 
             # now the child is seeded with its first element and can be filled uwing the aforementioned algorithm
 
-            print(self.parent_adjacencies) #debug
+            #print(self.parent_adjacencies) #debug
             while self.num_used_tiles < len(parent1.ravel()):
-                #print(self.used_tiles) # debug
+                #print(self.grid) # debug
                 # start by searching for an element in the child in self.parent_adjacencies
                 current_shape = self.grid.shape
                 place_random = False
                 if self.parent_adjacencies: # check that there even are duplicate adjacencies
                     #print(self.parent_adjacencies) # debug
                     dual_adjacent_in_child = []
-                    print(self.grid) # debug
                     for i, element in enumerate(self.grid.ravel()):
                         # i is the index of the raveled array; element is the integer representing the tile
                         m = i // current_shape[1] # row index of element
                         n = i % current_shape[1] # column index of element
-                        #print((m,n)) # debug
                         if element in self.parent_adjacencies:
                             open = self.check_open_side(m,n, current_shape)
-                            any_open = open['top'] or open['bottom'] or open['left'] or open['right']
-                            if any_open: # check if the tile has an open adjacency
-                                repetative_neighbors_dict = self.parent_adjacencies_lookup[element] # should return a dictionary with the parental repeated neighbors on each side listed
-                                if (repetative_neighbors_dict['top'] not in self.used_tiles) or (repetative_neighbors_dict['bottom'] not in self.used_tiles) or (repetative_neighbors_dict['right'] not in self.used_tiles) or (repetative_neighbors_dict['left'] not in self.used_tiles): # check that the intended neighbor has not already been place in the child; recall that None is in the list of used tiles so we get True if there is no ajacency
-                                    dual_adjacent_in_child.append(i) # this will be a list of all of the elements in the child that have repeated adjacencies in the parents that also have open sides in the grid
-                                else: # then the partner of this tile is used already - there is no reason to consider either or them in future loops
-                                    del self.parent_adjacencies[np.argwhere(self.parent_adjacencies == element)]
-                            else: # there is no opening in the child for this element
-                                del self.parent_adjacencies[np.argwhere(self.parent_adjacencies == element)] # no reason to consider this element again on future loops
+                            repetative_neighbors_dict = self.parent_adjacencies_lookup[element] # should return a dictionary with the parental repeated neighbors on each side listed
+                            if any( ( (repetative_neighbors_dict[d] not in self.used_tiles) and ( open[d] != False ) ) for d in outerself.directions ): # check that the intended neighbor has not already been place in the child; recall that None is in the list of used tiles so we get True if there is no ajacency
+                                dual_adjacent_in_child.append(i) # this will be a list of all of the elements in the child that have repeated adjacencies in the parents that also have open sides in the grid
+                            else: # then the partner of this tile is used already - there is no reason to consider either or them in future loops
+                                self.parent_adjacencies.remove(element) # no reason to consider this element again on future loops
                     if dual_adjacent_in_child: # check the list is non-empty; i.e. were any of the neighbors not already chosen?
                         # choose a tile which a neighbour
                         tile = np.random.choice(dual_adjacent_in_child) # tile index in the flat array
@@ -202,6 +197,7 @@ class Geonome:
                         if direction == 'top':
                             if m == 0: # the tile in child is already at the top
                                 self.add_row_above() # we don't need to worry about going over because we ensured that we chose directions open in that orientattion
+                                m += 1
                             self.grid[m-1,n] = repetative_neighbors_dict[direction] # pace the tile in approprate direction
                             self.num_used_tiles += 1
                             self.used_tiles.append(self.grid[m-1,n]) # add the used tile to the list
@@ -216,6 +212,7 @@ class Geonome:
                         elif direction == 'left':
                             if n == 0: # the tile in child is already at the top
                                 self.add_column_left()
+                                n += 1
                             self.grid[m,n-1] = repetative_neighbors_dict[direction] # pace the tile in approprate direction
                             self.num_used_tiles += 1
                             self.used_tiles.append(self.grid[m,n-1]) # add the used tile to the list
@@ -232,7 +229,7 @@ class Geonome:
                         place_random = True
 
                 else: #there are no dulpicate adjacencies 
-                    place_random == True
+                    place_random = True
                 
                 if place_random:
                     # find elements that have open side:
@@ -251,6 +248,7 @@ class Geonome:
                     n = element_index % current_shape[1]
                     element = self.grid[m,n]
                     # now find the valid neighbors of that element
+                    valid_directions = []
                     for direction in ['top','bottom','left','right']:
                             if self.check_open_side(m,n,current_shape)[direction]: # requires the element to be open in that direction and for it to actully have a valid neighbor
                                 valid_directions.append(direction)
@@ -258,7 +256,8 @@ class Geonome:
                     
                     # get a random sample of unused tiles
                     unused_tile_pure = self.unused_tiles[self.unused_tiles != None]
-                    num_sample = np.max([10, len(unused_tile_pure)]) # by doing this random sampling, it ensures if the most compatable one it not the true fit, we have a chance of still getting the true fit
+                    #print(unused_tile_pure) # debug
+                    num_sample = np.min([10, len(unused_tile_pure)]) # by doing this random sampling, it ensures if the most compatable one it not the true fit, we have a chance of still getting the true fit
                     samples = np.random.choice(unused_tile_pure,num_sample,replace=False)
                     max_compatability = (element,-np.inf)
                     for sample_tile in samples:
@@ -272,6 +271,7 @@ class Geonome:
                     if direction == 'top':
                         if m == 0: # the tile in child is already at the top
                             self.add_row_above() # we don't need to worry about going over because we ensured that we chose directions open in that orientattion
+                            m += 1
                         self.grid[m-1,n] = max_compatability # pace the tile in approprate direction
                         self.num_used_tiles += 1
                         self.used_tiles.append(self.grid[m-1,n]) # add the used tile to the list
@@ -285,6 +285,7 @@ class Geonome:
                         self.unused_tiles[self.grid[m+1,n]] = None
                     elif direction == 'left':
                         if n == 0: # the tile in child is already at the top
+                            n += 1
                             self.add_column_left()
                         self.grid[m,n-1] = max_compatability # pace the tile in approprate direction
                         self.num_used_tiles += 1
@@ -486,7 +487,7 @@ geonome = Geonome([np.arange(0,64,1,dtype=int).reshape((8,8))],tiles) # the coll
 '''
 Generate Random Chromosomes (members of the solution space)
 '''
-num_chromosomes = 10 # should set to 1000
+num_chromosomes = 1000 # should set to 1000
 
 for _ in range(num_chromosomes):
     geonome.chromosomes.append(np.random.permutation(geonome.chromosomes[0].ravel()).reshape(geonome.chromosomes[0].shape)) # takes in the array and randomly permutes the elements - this will generate our initial chromosomes.
@@ -496,31 +497,30 @@ geonome.num_chromosomes = num_chromosomes
 complete the solver
 '''
 
-num_generations = 1
+num_generations = 10
 num_initial_parents_per_gen = 4
 
 generation = 0
 
 while generation < num_generations:
-    for _ in range(num_chromosomes):
-        geonome.chromosomes = geonome.n_most_fit(num_initial_parents_per_gen) # get the initial parents
-        geonome.num_chromosomes = num_initial_parents_per_gen
-        while geonome.num_chromosomes < num_chromosomes:
-            print(f"generation: {generation}, chromosome count: {geonome.num_chromosomes}") # to see progress, mainly for debugging
-            parent1 = np.random.randint(0,num_initial_parents_per_gen)
-            parent2 = np.random.randint(0,num_initial_parents_per_gen)
-            count = 0
-            while parent1 == parent2 and count < 10: # prevent inbreeding
-                count += 1 # prevents stalling here indefinately; if one repeat gets through it won't really hurt anything
-                parent2 = np.random.randint(0,num_initial_parents_per_gen) # Since mutations will be introduced, inbreeding actually serves to preserve a parent with small modificatons; though given the way the current crossing algorithm works, I don't think that we should admit repeats
-            geonome.cross(parent1,parent2) # appends a child to the list of chromosomes
+    geonome.chromosomes = geonome.n_most_fit(num_initial_parents_per_gen) # get the initial parents
+    geonome.num_chromosomes = num_initial_parents_per_gen
+    while geonome.num_chromosomes < num_chromosomes:
+        print(f"generation: {generation}, chromosome count: {geonome.num_chromosomes}") # to see progress, mainly for debugging
+        parent1 = np.random.randint(0,num_initial_parents_per_gen)
+        parent2 = np.random.randint(0,num_initial_parents_per_gen)
+        count = 0
+        while parent1 == parent2 and count < 10: # prevent inbreeding
+            count += 1 # prevents stalling here indefinately; if one repeat gets through it won't really hurt anything
+            parent2 = np.random.randint(0,num_initial_parents_per_gen) # Since mutations will be introduced, inbreeding actually serves to preserve a parent with small modificatons; though given the way the current crossing algorithm works, I don't think that we should admit repeats
+        geonome.cross(parent1,parent2) # appends a child to the list of chromosomes
     generation += 1
 
 '''
 Now we have a selection 1000 crossbred products; we return the one with the best fitness
 '''
 
-best_child = geonome.n_most_fit(1)
+best_child = geonome.n_most_fit(1)[0]
 
 # now we need to reassemble the image
 resotred_page = np.zeros((length,width))
