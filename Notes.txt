@@ -13,5 +13,10 @@
 
 2-18-2026 17:33 : simplified crossing algorithm sans the mutations is not complete. Will run a small trial to fish for bugs
 
-2-18-2026 23:36 : finished the crossing algorithm except the mutations; will add that next. The speed is surprisingly quick. I though it would be dreadfully slow given the shear number of array operations which are probably not as efficient as they could be. Jaiz recommended replacing lists with sets as I don't care about order in some of them, and the lookup time is faster. On another note, 5 generations gets us to an energy of 189106.09901162336 which is definitely worth than my simulated annealing, so it might be worth, instead of seeding with 1000 random samples from the solution space, seeding with 10, running simulated annealing and then choosing the first generation parent from those 10, thus we start at about 160000 on the energy scale. Then I'll add in mutation and see how that does. 
+2-18-2026 23:36 : finished the crossing algorithm except the mutations; will add that next. The speed is surprisingly quick. I though it would be dreadfully slow given the shear number of array operations which are probably not as efficient as they could be. Jaiz recommended replacing lists with sets as I don't care about order in some of them, and the lookup time is faster. On another note, 5 generations gets us to an energy of 189106.09901162336 which is definitely worse than my simulated annealing, so it might be worth, instead of seeding with 1000 random samples from the solution space, seeding with 10, running simulated annealing and then choosing the first generation parent from those 10, thus we start at about 160000 on the energy scale. Then I'll add in mutation and see how that does. 
 Another issue that I thing plagues this particular application and not the puzzle that the papers are working with is that the Manga page has a lot of random white space so the algorithms tend to want to stick dialog boxes together even it they are from the wrong panels.
+
+2-18-2026 23:58: for the record, scale=0.999 and T0=200 reliably gets us to an energy of about 165000 in a decent amount of time (about 10 seconds) (annealing) - will probably use these settings for seeding the genetic algorithm.
+
+
+

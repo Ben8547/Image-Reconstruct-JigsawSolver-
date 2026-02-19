@@ -39,6 +39,8 @@ compatability = lambda x,y: -np.linalg.norm(x-y) # we are trying to maximize the
 class Geonome:
     def __init__(self, grid_list, dict_list):
         self.complementary_directions = { "top":"bottom", "bottom":"top", "left":"right", "right":"left"  }
+        self.T0 = 200. # for annealing
+        self.temp_decay = 0.999 # for annealing
         self.directions = { "top", "bottom", "left", 'right' }
         self.chromosomes = grid_list
         self.num_chromosomes = len(grid_list)
@@ -116,6 +118,16 @@ class Geonome:
                 energy += self.interaction_energy(chromosome,(i,j))
         return energy
     
+    def energy(self, grid): # just negative fitness, but allows passing a grid and not just an index so can effect non-chromosome arrays
+        chromosome = grid
+        energy = 0.
+        for i in range(1,self.grid_shape[0]): # skip firt row
+            for j in range(1,self.grid_shape[1]): # skip first column
+                # we don't want to double count interactions so we first only compute the energies to the left and obove each point (skipping the topmost and leftmost row/column)
+                # then since the edges do not interact we can stop here since each interacting edge has been counted exactly once.
+                energy += self.interaction_energy(chromosome,(i,j))
+        return -energy
+    
     def interaction_energy(self, simGrid, grid_point:tuple) -> float:
         '''simGrid is an artifact from this begin from the simmulated annealing trials - it is an indevidual chromosome in this class'''
         row = grid_point[0]
@@ -133,6 +145,74 @@ class Geonome:
         left_energy = compatability(left_neighbor['right'], current['left'])
 
         return top_energy + left_energy
+    
+    def markovStep(self, chromosome, tempurature: float):
+        '''Apply a single step of the annealing algorithm to the chromosome'''
+         # find a point to swap with another
+        point1 = (0,0)
+        point2 = (0,0)
+        count = 0
+
+        choice = np.random.randint(0,3)
+        new_grid = np.copy(chromosome) # grid to store the purtubation in
+        if choice == 0:
+            while (point1 == point2) and (count < 10): # ensures (to an reasonable extent) that we swap two distinct points
+                point1 = (np.random.randint(0,self.grid_shape[0]), np.random.randint(0,self.grid_shape[1]))
+                point2 = (np.random.randint(0,self.grid_shape[0]), np.random.randint(0,self.grid_shape[1]))
+                count += 1
+            del count # no reason to keep it about 
+
+            #replace the points in a new grid
+            #temp_save = new_grid[point1] # there was no reason to ever do this - it's stored in the old grid still...
+            new_grid[point1] = new_grid[point2]
+            new_grid[point2] = chromosome[point1]
+            #print(new_grid - self.simGrid) # debug
+
+        elif choice == 1: # swap sides of grid
+            if np.random.randint(0,2) == 0: # choose row
+                row  = np.random.randint(1,self.grid_shape[0]) # choose random row index; don't allow first row since this will result in an unperturbed array
+                new_grid[row:,:] = new_grid[:-row,:]
+                new_grid[:row,:] = chromosome[-row:,:] # sets the first n rows equal the last n rows
+                del row
+            else: # choose column
+                col = np.random.randint(1,self.grid_shape[1])
+                new_grid[:,col:] = new_grid[:,:-col]
+                new_grid[:,:col] = chromosome[:,-col:] # sets the first n rows equal the last n rows
+                del col
+
+        elif choice == 2: # rotate the pieces
+            index = np.random.randint(1,self.grid_shape[1]) # needs to be square so we only use one index
+            if np.random.randint(0,2) == 0:
+                new_grid[:index,:index] = np.rot90(new_grid[:index,:index])
+            else:
+                new_grid[index:,index:] = np.rot90(new_grid[index:,index:])
+
+            del index
+        
+        ''' compute the energy (negative fitness) '''
+
+        previous_energy = self.energy(chromosome)
+        new_energy = self.energy(new_grid)
+
+        boltzmann_factor = np.exp((previous_energy - new_energy) / tempurature)
+
+        if np.random.random() < boltzmann_factor: # always except whern previous >= new, sometimes accept an increase in the nergy - dig out of local minima.
+            #print("accepted") # debug
+            return new_grid
+        else: return chromosome
+    
+    def anneal(self, chromosome):
+        '''apply simulated annealing to a single chromosome'''
+        T = self.T0
+        while T > 1.:
+            chromosome = self.markovStep(chromosome,T)
+            T *= self.temp_decay
+        return chromosome # should mutate in place, but I'll return for asureadness
+    
+    def anneal_all(self):
+        ''' Take all of the chromosomes and run them through simmulated annealing, then replace the chromosomes '''
+        for i, chromosome in enumerate(self.chromosomes):
+            self.chromosomes[i] = self.anneal(chromosome) # replace the chromosome
     
     class Child:
         def __init__(self, parent1, parent2, outerself):
@@ -489,9 +569,15 @@ Generate Random Chromosomes (members of the solution space)
 '''
 num_chromosomes = 1000 # should set to 1000
 
-for _ in range(num_chromosomes):
+'''for _ in range(num_chromosomes):
     geonome.chromosomes.append(np.random.permutation(geonome.chromosomes[0].ravel()).reshape(geonome.chromosomes[0].shape)) # takes in the array and randomly permutes the elements - this will generate our initial chromosomes.
-geonome.num_chromosomes = num_chromosomes
+geonome.num_chromosomes = num_chromosomes''' # method that the paper uses; I think I can do better by seeding with simulated annealing
+
+num_chromosomes_to_seed_with = 10
+
+for _ in range(num_chromosomes_to_seed_with):
+    geonome.chromosomes.append(np.random.permutation(geonome.chromosomes[0].ravel()).reshape(geonome.chromosomes[0].shape)) # takes in the array and randomly permutes the elements - this will generate our initial chromosomes.
+geonome.num_chromosomes = num_chromosomes_to_seed_with
 
 '''
 complete the solver
