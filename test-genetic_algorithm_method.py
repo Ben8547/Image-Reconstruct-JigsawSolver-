@@ -587,13 +587,13 @@ geonome = Geonome([np.arange(0,64,1,dtype=np.int8).reshape((8,8))],tiles) # the 
 '''
 Generate Random Chromosomes (members of the solution space)
 '''
-num_chromosomes = 1000 # should set to 1000
+num_chromosomes = 500 # should set to 1000
 
 '''for _ in range(num_chromosomes):
     geonome.chromosomes.append(np.random.permutation(geonome.chromosomes[0].ravel()).reshape(geonome.chromosomes[0].shape)) # takes in the array and randomly permutes the elements - this will generate our initial chromosomes.
 geonome.num_chromosomes = num_chromosomes''' # method that the paper uses; I think I can do better by seeding with simulated annealing
 
-num_chromosomes_to_seed_with = 4 #10
+num_chromosomes_to_seed_with = 10 #10
 
 for _ in range(num_chromosomes_to_seed_with):
     geonome.chromosomes.append(np.random.permutation(geonome.chromosomes[0].ravel()).reshape(geonome.chromosomes[0].shape)) # takes in the array and randomly permutes the elements - this will generate our initial chromosomes.
@@ -606,7 +606,7 @@ print("initial annealing complete")
 complete the solver
 '''
 
-num_generations = 5 # should set to 100
+num_generations = 101 # should set to 100
 num_initial_parents_per_gen = 4 # should set to 4
 
 generation = 1

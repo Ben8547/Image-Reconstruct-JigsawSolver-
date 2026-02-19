@@ -40,7 +40,7 @@ if False: # test of loading the files into numpy
 # tests show that the each element of the array is a pixel so if we can figure out where the cut are pixelwise it should be easy to disect the image into pieces
 
 '''Load in the test file (permanent)'''
-file = "test.jpg"
+file = "Original_RainbowFlower.jpg"
 gray_matrix = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
 #print(gray_matrix)
 
@@ -96,6 +96,9 @@ grid = np.arange(0,64,1).reshape((8,8))
 
 from numpy.linalg import norm
 
+#compatability = lambda x,y: norm(x-y)
+compatability = lambda x,y: norm(x-y)
+
 class simulation_grid: # the grid defined above is a member of this class when combined with it's list of dictionaries, these are utility functions to use on the simulation grid
     def __init__(self, grid, dict_list):
         self.gradient_cost = False # if true we use an energy function that penalizes changes in intensity gradients at edges, if false, we use the standard intensity cost
@@ -142,11 +145,11 @@ class simulation_grid: # the grid defined above is a member of this class when c
         current = self.tile_data[self.simGrid[row,column]]
 
         # top side interaction
-        top_energy = norm(top_neighbor['bottom'] - current['top'])
+        top_energy = compatability(top_neighbor['bottom'], current['top'])
         # borrom side interaction
         #bottom_energy = norm(bottom_neighbor['top'] - current['bottom'])
         # top side interaction
-        left_energy = norm(left_neighbor['right'] - current['left'])
+        left_energy = compatability(left_neighbor['right'], current['left'])
         # top side interaction
         #right_energy = norm(right_neighbor['left'] - current['right'])
 

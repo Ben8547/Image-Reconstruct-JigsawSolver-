@@ -27,3 +27,11 @@ Another issue that I thing plagues this particular application and not the puzzl
 2-19-2026 1:28 : custom squirrel puzzle finished, It doesn't seem to have done any better. I think that I'll add the mutations now and try that instead. Maybe that is the piece that we are missing. (maybe tomorrow actually)
 
 2-19-2026 2:01 : I'll just let it run overnight and see where se get to.
+
+2-19-2026 11:34 : Ran two 100 generation trial last night on the squirrel puzzle. One the neaaling mutation and one without. Neither performed well. I think I will need to implement the best buddies. I want to see if that makes a different. If it doesn't I might need to reread the paper to see if I misinterpreted anything.
+
+2-19-2026 11:39 : I had the idea to see what the energy of the original image of the squirrel was. It seems to be nearly 7000; so my programs were actually finding minima, its just that for whatever reason, the original image isn't a minimum of my energy function which is really weird. I'll test another puzzle I think. An image of a Zebra perhaps - very distinct colors.
+
+2-19-2026 11:46 : Original Zebra has an energy of about 87757.54583770488. After running simulated annealing on the original Zebra (not even a puzzle version) the energy becomes 32767.698903254175. Looking at the output image, we see the body of the Zebra has been dispersed around the edges of the diagram, while the body of the zebra got paused to the boarder so that all of the white space in the background could have maximal contact. I think this is an issue because the papers are using color images and I'm using grayscale and their backgrounds are rarely monochromatic. My earlier idea about the dialog boxes seems to have been correct.
+
+2-19-2026 11:56 : The rainbow flower image original has an energy of 120255.8291043487. After annealing it is reduced to 75015.15926847246. I honestly don't know what the flower is doing, it seems in everyway like the energy should be worse. It is quite clear that we need a different energy function; my immediate idea is to penalize whitespace, other otherwise exclude whitespace from the computation, but this won't solve whatever is going on with the flower and the squirrel.
