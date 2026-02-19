@@ -40,7 +40,8 @@ if False: # test of loading the files into numpy
 # tests show that the each element of the array is a pixel so if we can figure out where the cut are pixelwise it should be easy to disect the image into pieces
 
 '''Load in the test file (permanent)'''
-gray_matrix = cv2.imread("test.jpg", cv2.IMREAD_GRAYSCALE)
+file = "test.jpg"
+gray_matrix = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
 #print(gray_matrix)
 
 if False:  # test disection

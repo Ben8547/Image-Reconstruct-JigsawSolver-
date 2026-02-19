@@ -143,7 +143,7 @@ class Geonome:
             # the other easy alternative is to create an array that is 17 x 17 and then crop it at the end, but for larger puzzles that would require an unfeasable amount of memory, though would probably run faster.
             # Thus since it would probably scale better with the size of the puzzle we opt for the dynamic array.
             # we fill the array with -1s so that it does not confuse these empty spots with any of the indicies of self. tile_data
-            self.grid = -np.ones((1,1),dtype=int)
+            self.grid = -np.ones((1,1),dtype=np.int8)
 
             #seed the child with the first tile.
             # quickest way to search is to just go through every every other element of one parent, find the element in the other, and then check the neighbors of both in each direction to see if they match
@@ -431,19 +431,19 @@ class Geonome:
         
         def add_row_above(self):
             num_cols = self.grid.shape[1]
-            self.grid = np.vstack((-np.ones((1,num_cols),dtype=int), self.grid)) # whithout setting dtype=int it turns the entire array into a float but we need it as an int since these are indicies
+            self.grid = np.vstack((-np.ones((1,num_cols),dtype=np.int8), self.grid)) # whithout setting dtype=int it turns the entire array into a float but we need it as an int since these are indicies
             
         def add_row_below(self):
             num_cols = self.grid.shape[1]
-            self.grid = np.vstack((self.grid,-np.ones((1,num_cols), dtype=int)))
+            self.grid = np.vstack((self.grid,-np.ones((1,num_cols), dtype=np.int8)))
 
         def add_column_left(self):
             num_rows = self.grid.shape[0]
-            self.grid = np.hstack((-np.ones((num_rows,1),dtype=int), self.grid))
+            self.grid = np.hstack((-np.ones((num_rows,1),dtype=np.int8), self.grid))
         
         def add_column_right(self):
             num_rows = self.grid.shape[0]
-            self.grid = np.hstack((self.grid,-np.ones((num_rows,1), dtype=int)))
+            self.grid = np.hstack((self.grid,-np.ones((num_rows,1), dtype=np.int8)))
 
             
         def mutate(self): # my original mutation function. I think this would be an interesting place to slot in simmulated annealing;
@@ -482,7 +482,7 @@ class Geonome:
         self.chromosomes.append(child.grid) # add the child to the chromosomes
         self.num_chromosomes += 1
 
-geonome = Geonome([np.arange(0,64,1,dtype=int).reshape((8,8))],tiles) # the collection of chromosomes; a list of arrays
+geonome = Geonome([np.arange(0,64,1,dtype=np.int8).reshape((8,8))],tiles) # the collection of chromosomes; a list of arrays; jpg can only support int 8 so no need to use anything fancier
 
 '''
 Generate Random Chromosomes (members of the solution space)
@@ -497,12 +497,12 @@ geonome.num_chromosomes = num_chromosomes
 complete the solver
 '''
 
-num_generations = 10
+num_generations = 5 # should set to 100
 num_initial_parents_per_gen = 4
 
-generation = 0
+generation = 1
 
-while generation < num_generations:
+while generation <= num_generations:
     geonome.chromosomes = geonome.n_most_fit(num_initial_parents_per_gen) # get the initial parents
     geonome.num_chromosomes = num_initial_parents_per_gen
     while geonome.num_chromosomes < num_chromosomes:
@@ -531,4 +531,5 @@ for i in range(geonome.grid_shape[0]):
         resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = geonome.tile_data[dict_index]["entire"]
 
 plt.imshow(resotred_page)
+cv2.imwrite(f"test_output_{generation}-Generations.jpg", resotred_page)
 plt.show()
