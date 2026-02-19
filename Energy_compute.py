@@ -110,7 +110,9 @@ if __name__ == "__main__":
 
     ''' Compatability function'''
     from numpy.linalg import norm
-    compatability = lambda x,y: norm(x-y)
+    #compatability = lambda x,y: norm(x-y)
+    def compatability(x,y):
+         return
 
     print(compute_energy(file = "Original_Squirrel.jpg", color=True, energyFunction = compatability))
     print(compute_energy(file = "Squirrel_Puzzle.jpg", color=True, energyFunction = compatability))
