@@ -45,7 +45,7 @@ color = True
 
 '''Load in the test file (permanent)'''
 
-file = "Original_RainbowFlower.jpg"
+file = "test.jpg"
 
 if color:
     color_volume = cv2.imread(file, cv2.IMREAD_COLOR)
@@ -83,10 +83,10 @@ if not color:
     for i in range(8):
         for j in range(8):
             tiles.append({
-                "top": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j],
-                "bottom": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1],
-                "left": gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)],
-                "right": gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
+                "top": gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)],
+                "bottom": gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
+                "left": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j],
+                "right": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1],
                 "entire": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] # need this last one to reconstruct the array later
             })
     del gray_matrix # no need to store a large matrix any longer than we need it. We only need the boarders anyway
@@ -100,10 +100,10 @@ else:
     for i in range(8):
         for j in range(8):
             tiles.append({
-                "top": color_volume[tile_length*i:tile_length*(i+1),tile_width*j,:],
-                "bottom": color_volume[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1,:],
-                "left": color_volume[tile_length*i,tile_width*j:tile_width*(j+1),:],
-                "right": color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1),:],
+                "top": color_volume[tile_length*i,tile_width*j:tile_width*(j+1),:],
+                "bottom": color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1),:],
+                "left": color_volume[tile_length*i:tile_length*(i+1),tile_width*j,:],
+                "right": color_volume[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1,:],
                 "entire": color_volume[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] # need this last one to reconstruct the array later
             })
 
@@ -131,10 +131,10 @@ from numpy.linalg import norm
 
 if color:
     #compatability = lambda x,y: norm(x-y)
-    compatability = lambda x,y: norm(x-y)
+    compatability = lambda x,y: np.mean((x-y)**2)
 else:
     #compatability = lambda x,y: norm(x-y)
-    compatability = lambda x,y: norm(x-y)
+    compatability = lambda x,y: np.mean((x-y)**2)
 
 class simulation_grid: # the grid defined above is a member of this class when combined with it's list of dictionaries, these are utility functions to use on the simulation grid
     def __init__(self, grid, dict_list):
@@ -194,6 +194,33 @@ class simulation_grid: # the grid defined above is a member of this class when c
 
         return top_energy + left_energy# + bottom_energy + right_energy
     
+    def check_boundary(self,row:int, col:int) -> tuple:
+            shape = self.grid_shape
+            '''top/bottom'''
+            if (row == 0): # if on top boundary
+                top_open = False
+                bottom_open = True
+            elif (row == shape[0]-1): # on bottom boundary
+                bottom_open = False
+                top_open = True
+            else: # then we are in one of the middle rows
+                top_open = True
+                bottom_open = True
+            
+            '''left/right'''
+            if (col == 0): # if on left boundary
+                left_open = False
+                right_open = True
+            elif (col == shape[1]-1): # on right boundary
+                right_open = False
+                left_open = True
+            else: # then we are in one of the middle rows
+                left_open = True
+                right_open = True
+
+            return {'top':top_open, 'bottom':bottom_open, 'left':left_open, 'right':right_open}
+
+    
     def markovStep(self, tempurature: float):
         '''
         Docstring for markovStep
@@ -213,6 +240,30 @@ class simulation_grid: # the grid defined above is a member of this class when c
             3. replace the current solution with a random permutation - this allows for a quick escape of a minimum if we are stuck; but requires getting fairly luck so might not be worth it
         Hopefully this provides enough extra ways of purturbing the system that we can search the solution space more efficiently.
         '''
+
+        def local_energy(grid, point:tuple):
+                p = grid[point]
+                energy = 0.
+                for d in self.directions:
+                    if d == "top":
+                        if point[0] != 0:
+                            neighbour = grid[point[0]-1,point[1]]
+                            energy += compatability(self.tile_data[p][d], self.tile_data[neighbour][self.complementary_directions[d]])
+                    elif d == "bottom":
+                        if point[0] != self.grid_shape[0]-1:
+                            neighbour = grid[point[0]+1,point[1]]
+                            energy += compatability(self.tile_data[p][d], self.tile_data[neighbour][self.complementary_directions[d]])
+                    elif d == "left":
+                        if point[1] != 0:
+                            neighbour = grid[point[0],point[1]-1]
+                            energy += compatability(self.tile_data[p][d], self.tile_data[neighbour][self.complementary_directions[d]])
+                    elif d == "right":
+                        if point[1] != self.grid_shape[1]-1:
+                            neighbour = grid[point[0],point[1]+1]
+                            energy += compatability(self.tile_data[p][d], self.tile_data[neighbour][self.complementary_directions[d]])
+
+                return energy
+        
         choice = np.random.randint(0,2)
         new_grid = np.copy(self.simGrid) # grid to store the purtubation in
         if choice == 0:
@@ -229,39 +280,57 @@ class simulation_grid: # the grid defined above is a member of this class when c
 
             previous_energy_contribution = 0.
             new_energy_contribution = 0.
-            p1 = self.simGrid[point1[0],point1[1]]
-            p2 = self.simGrid[point2[0],point2[1]]
-
-            def local_energy(point):
-                for d in self.directions:
-                    if d == "top":
-
-                    elif d == "bottom":
-                    
-                    elif d == "left":
-
-                    elif d == "right":
-
-                return
 
             #replace the points in a new grid
             #temp_save = new_grid[point1] # there was no reason to ever do this - it's stored in the old grid still...
             new_grid[point1] = new_grid[point2]
             new_grid[point2] = self.simGrid[point1]
 
-            energy_change = new_energy_contribution - previous_energy_contribution
+            '''new_energy_contribution = local_energy(new_grid,point1) + local_energy(new_grid,point2)
+            previous_energy_contribution = local_energy(self.simGrid,point1) + local_energy(self.simGrid,point2)
+
+            #p1 and p2 are neighbours then we double count energies so we need to correct:
+            point1_open = self.check_boundary(point1[0],point1[1])
+            point2_open = self.check_boundary(point2[0],point2[1])
+            for d in self.directions:
+                if point1_open[d] and point2_open[self.complementary_directions[d]]:
+                    if d == 'top':
+                        if point1[0] == point2[0]-1: # point 1 is the top neighbor of point 2
+                            previous_energy_contribution -= compatability( self.tile_data[self.simGrid[point1]][self.complementary_directions[d]], self.tile_data[self.simGrid[point2]][d] )
+                            new_energy_contribution -= compatability( self.tile_data[new_grid[point1]][d], self.tile_data[new_grid[point2]][self.complementary_directions[d]] )
+                    elif d == 'bottom':
+                        if point1[0] == point2[0]+1: # point 1 is the bottom neighbor of point 2
+                            previous_energy_contribution -= compatability( self.tile_data[self.simGrid[point1]][self.complementary_directions[d]], self.tile_data[self.simGrid[point2]][d] )
+                            new_energy_contribution -= compatability( self.tile_data[new_grid[point1]][d], self.tile_data[new_grid[point2]][self.complementary_directions[d]] )
+                    elif d == 'left':
+                        if point1[1] == point2[1]-1: # point 1 is the left neighbor of point 2
+                            previous_energy_contribution -= compatability( self.tile_data[self.simGrid[point1]][self.complementary_directions[d]], self.tile_data[self.simGrid[point2]][d] )
+                            new_energy_contribution -= compatability( self.tile_data[new_grid[point1]][d], self.tile_data[new_grid[point2]][self.complementary_directions[d]] )
+                    elif d == 'right':
+                        if point1[1] == point2[1]+1: # point 1 is the right neighbor of point 2
+                            previous_energy_contribution -= compatability( self.tile_data[self.simGrid[point1]][self.complementary_directions[d]], self.tile_data[self.simGrid[point2]][d] )
+                            new_energy_contribution -= compatability( self.tile_data[new_grid[point1]][d], self.tile_data[new_grid[point2]][self.complementary_directions[d]] )'''
+            previous_energy_contribution = self.energy
+            new = simulation_grid(new_grid,self.tile_data) # slow, but easy for me to write
+            new_energy_contribution = new.total_energy()
+            del new
 
         elif choice == 1: # swap sides of grid
             if np.random.randint(0,2) == 0: # choose row
                 row  = np.random.randint(1,self.grid_shape[0]) # choose random row index; don't allow first row since this will result in an unperturbed array
-                new_grid[row:,:] = new_grid[:-row,:]
-                new_grid[:row,:] = self.simGrid[-row:,:] # sets the first n rows equal the last n rows
-                del row
+                #new_grid[row:,:] = new_grid[:-row,:]
+                #new_grid[:row,:] = self.simGrid[-row:,:] # sets the first n rows equal the last n rows
+                new_grid = np.roll(self.simGrid, shift=row, axis=0)
+
             else: # choose column
                 col = np.random.randint(1,self.grid_shape[1])
-                new_grid[:,col:] = new_grid[:,:-col]
-                new_grid[:,:col] = self.simGrid[:,-col:] # sets the first n rows equal the last n rows
-                del col
+                new_grid = np.roll(self.simGrid, shift=col, axis=1)
+            
+            """Compute energies"""
+            previous_energy_contribution = self.energy
+            new = simulation_grid(new_grid,self.tile_data) # slow, but easy for me to write
+            new_energy_contribution = new.total_energy()
+            del new
 
         elif choice == 2: # rotate the pieces; currently off - seems like it would be difficult to recompute the energy in this case
             raise(PermissionError) # the energy update is not written for this block
@@ -278,12 +347,7 @@ class simulation_grid: # the grid defined above is a member of this class when c
 
         '''Now that we have purtubed the grid, we compute the energy and decide acceptance'''
 
-        new = simulation_grid(new_grid,self.tile_data) # do this so that we can use the total energy function; probly not as quick as just writing a separate function, but saves me a lot of work
-
-        #new_energy = new.total_energy() # this is slow, I'm moving this into the if-elif block above. Instead we just recompute the neigbors that change; this is more efficient
-        del new # no reason to keep it around, the class stores a lot of redundant information
-        #print(previous_energy) # debug
-        #print(new_energy) # debug
+        energy_change = new_energy_contribution - previous_energy_contribution
 
         boltzmann_factor = np.exp((-energy_change) / tempurature)
 
@@ -316,9 +380,8 @@ if color:
             dict_index = restored[i,j]
             resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] = page.tile_data[dict_index]["entire"]
 
-    resotred_page = resotred_page.astype(np.int8) # jpg can only handle this resolution anyway
+    resotred_page = resotred_page.astype(np.uint8) # jpg can only handle this resolution anyway
     cv2.imwrite(f"annealing-color.jpg", resotred_page)
-    resotred_page /= 255. # scale to the interval [0,1]; required for imshow
 else:
     resotred_page = np.zeros((length,width))
 

@@ -11,8 +11,8 @@ gray_matrix = cv2.imread("Squirrel_Puzzle.jpg", cv2.IMREAD_GRAYSCALE) # load in 
 
 '''Chop up the image'''
 
-width = gray_matrix.shape[1] # horizontal distance - should be the shoter of the two
-length = gray_matrix.shape[0]
+width = gray_matrix.shape[1] # horizontal distance
+length = gray_matrix.shape[0] # vertical distance; number of rows
 tile_width = width//8
 tile_length = length//8
 
@@ -21,10 +21,10 @@ tiles = []
 for i in range(8):
     for j in range(8):
         tiles.append({
-            "top": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j],
-            "bottom": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1],
-            "left": gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)],
-            "right": gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
+            "top": gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)],
+            "bottom": gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
+            "left": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j],
+            "right": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1],
             "entire": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] # need this last one to reconstruct the array later
         })
 
@@ -35,7 +35,7 @@ del gray_matrix
 Genetic algorithm
 '''
 
-compatability = lambda x,y: np.linalg.norm(x-y) # we are trying to maximize the fitness, so we return the negative since energy is minimized
+compatability = lambda x,y: np.mean((x-y)**2)#np.linalg.norm(x-y) # we are trying to maximize the fitness, so we return the negative since energy is minimized
 
 class Geonome:
     def __init__(self, grid_list, dict_list):
@@ -53,52 +53,6 @@ class Geonome:
         #self.compatability_lists = self.generate_compatability_list()
         #self.best_buddies = self.find_best_buddies()
         #print('completed initialization of the geonome')
-
-    '''def find_best_buddies(self):
-        """
-        A best buddy is defined as follows:
-
-        Piece A is a best-buddy of piece B in direction R if for all X in PIECES, compatability(A,B;R) >= compatability(A,X;R)
-        AND compatability(B,A;R^c) >= compatability(B,X;R^c)
-        where R^c is the complementary direction of R.
-
-        We store best buddies in the following way, the order of each piece is defined by self.tile_data. We define a new list of dictionaries where the keys are each
-        of the 4 spatial directions. The value of eavh key is a list of the best buddies.
-        Once the compatability lists are generated, this should theoretically be a rapd process since we already have the order of compababilities so once we find a 
-        non-best buddy for an orientation we can move on.
-        """
-        list_dicts = []
-        for k, dict in enumerate(self.compatability_lists): # since by definition of best beddies is a symmetric relation we can save some more computations, I probably won't take advantage of this for ease of coding. Later if I revisit then I can do that (in fact if it were reflexive then it would be an equivalence relation) 
-
-            list_dicts.append({
-                "top": [],
-                "bottom": [],
-                "left": [],
-                "right": []
-            })
-
-        return list_dicts
-    
-    def generate_compatability_list(self):
-        """
-        This function compares each side of each tile against the complementary side of each other tile and compute the compatability score (using the same function as the fitness function)
-        We store this information as list of dictionaries of lists. The dictionaries appear in the same order as they do in self.tile_data, the keys of each dictionary are the 4 spatial directions
-        and the values of each key is a list of tuples of indicies of self.tile_data in order of compatability (least to greatest) and the associated compatabilty at that index.
-        """
-        list_dicts_lists = []
-        for k, dict in enumerate(self.tile_data):
-            top_compats = [compatability( dict['top'], self.tile_data[i][self.complementary_directions['top']] ) if i != k else -np.inf for i in range(self.num_tiles)]
-            bottom_compats = [compatability( dict['bottom'], self.tile_data[i][self.complementary_directions['bottom']] ) if i != k else -np.inf for i in range(self.num_tiles)]
-            left_compats = [compatability( dict['left'], self.tile_data[i][self.complementary_directions['left']] ) if i != k else -np.inf for i in range(self.num_tiles)]
-            right_compats = [compatability( dict['right'], self.tile_data[i][self.complementary_directions['right']] ) if i != k else -np.inf for i in range(self.num_tiles)]
-
-            list_dicts_lists.append({ # this could be made more efficient if we take into account that some of the below compatabilites are redundent, but that relies on the compatability funciton being a symmetric oporator which may not always be the case even though it is in our use case.
-                "top":[ (j, top_compats[j]) for j in np.argsort( top_compats ) ],
-                "bottom":[ (j, bottom_compats[j]) for j in (np.argsort( bottom_compats )) ],
-                "left":[ (j, left_compats[j]) for j in (np.argsort( left_compats )) ],
-                "right":[ (j, right_compats[j]) for j in (np.argsort( right_compats )) ]
-            })
-        return list_dicts_lists''' # removed because it was clunkey and probably not well optomized, I'd like to revisit when I more time to think about it
 
     def n_most_fit(self,n:int):
         if n > self.num_chromosomes:
@@ -229,7 +183,7 @@ class Geonome:
             # the other easy alternative is to create an array that is 17 x 17 and then crop it at the end, but for larger puzzles that would require an unfeasable amount of memory, though would probably run faster.
             # Thus since it would probably scale better with the size of the puzzle we opt for the dynamic array.
             # we fill the array with -1s so that it does not confuse these empty spots with any of the indicies of self. tile_data
-            self.grid = -np.ones((1,1),dtype=np.int8)
+            self.grid = -np.ones((1,1),dtype=np.uint8)
 
             #seed the child with the first tile.
             # quickest way to search is to just go through every every other element of one parent, find the element in the other, and then check the neighbors of both in each direction to see if they match
@@ -528,19 +482,19 @@ class Geonome:
         
         def add_row_above(self):
             num_cols = self.grid.shape[1]
-            self.grid = np.vstack((-np.ones((1,num_cols),dtype=np.int8), self.grid)) # whithout setting dtype=int it turns the entire array into a float but we need it as an int since these are indicies
+            self.grid = np.vstack((-np.ones((1,num_cols),dtype=np.uint8), self.grid)) # whithout setting dtype=int it turns the entire array into a float but we need it as an int since these are indicies
             
         def add_row_below(self):
             num_cols = self.grid.shape[1]
-            self.grid = np.vstack((self.grid,-np.ones((1,num_cols), dtype=np.int8)))
+            self.grid = np.vstack((self.grid,-np.ones((1,num_cols), dtype=np.uint8)))
 
         def add_column_left(self):
             num_rows = self.grid.shape[0]
-            self.grid = np.hstack((-np.ones((num_rows,1),dtype=np.int8), self.grid))
+            self.grid = np.hstack((-np.ones((num_rows,1),dtype=np.uint8), self.grid))
         
         def add_column_right(self):
             num_rows = self.grid.shape[0]
-            self.grid = np.hstack((self.grid,-np.ones((num_rows,1), dtype=np.int8)))
+            self.grid = np.hstack((self.grid,-np.ones((num_rows,1), dtype=np.uint8)))
 
             
         def mutate(self): # my original mutation function. I think this would be an interesting place to slot in simmulated annealing;
@@ -582,7 +536,7 @@ class Geonome:
         self.chromosomes.append(child.grid) # add the child to the chromosomes
         self.num_chromosomes += 1
 
-geonome = Geonome([np.arange(0,64,1,dtype=np.int8).reshape((8,8))],tiles) # the collection of chromosomes; a list of arrays; jpg can only support int 8 so no need to use anything fancier
+geonome = Geonome([np.arange(0,64,1,dtype=np.uint8).reshape((8,8))],tiles) # the collection of chromosomes; a list of arrays; jpg can only support int 8 so no need to use anything fancier
 
 '''
 Generate Random Chromosomes (members of the solution space)
@@ -647,6 +601,6 @@ for i in range(geonome.grid_shape[0]):
         resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = geonome.tile_data[dict_index]["entire"]
 
 plt.imshow(resotred_page)
-resotred_page.astype(np.int8) # so that cv2 doesn't have to compress anything
+resotred_page.astype(np.uint8) # so that cv2 doesn't have to compress anything
 cv2.imwrite(f"test_output_{generation-1}-Generations.jpg", resotred_page)
 plt.show()

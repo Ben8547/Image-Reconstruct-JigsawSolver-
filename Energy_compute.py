@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 
 
-def compute_energy(file,color=True, energyFunction=lambda x,y: np.linalg.norm(x-y)):
+def compute_energy(file,color=True, energyFunction=lambda x,y: np.linalg.norm(x-y)/len(x)):
 
     grid = np.arange(0,64,1,dtype=np.int8).reshape((8,8))
 
@@ -35,10 +35,10 @@ def compute_energy(file,color=True, energyFunction=lambda x,y: np.linalg.norm(x-
         for i in range(8):
             for j in range(8):
                 tiles.append({
-                    "top": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j],
-                    "bottom": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1],
-                    "left": gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)],
-                    "right": gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
+                    "top": gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)],
+                    "bottom": gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
+                    "left": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j],
+                    "right": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1]
                 })
         del gray_matrix # no need to store a large matrix any longer than we need it. We only need the boarders anyway
     else:
@@ -51,10 +51,10 @@ def compute_energy(file,color=True, energyFunction=lambda x,y: np.linalg.norm(x-
         for i in range(8):
             for j in range(8):
                 tiles.append({
-                    "top": color_volume[tile_length*i:tile_length*(i+1),tile_width*j,:],
-                    "bottom": color_volume[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1,:],
-                    "left": color_volume[tile_length*i,tile_width*j:tile_width*(j+1),:],
-                    "right": color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1),:],
+                    "top": color_volume[tile_length*i,tile_width*j:tile_width*(j+1),:],
+                    "bottom": color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1),:],
+                    "left": color_volume[tile_length*i:tile_length*(i+1),tile_width*j,:],
+                    "right": color_volume[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1,:]
                 })
 
         del color_volume # no need to store a large matrix any longer than we need it. We only need the boarders anyway
@@ -110,12 +110,11 @@ if __name__ == "__main__":
 
     ''' Compatability function'''
     from numpy.linalg import norm
-    #compatability = lambda x,y: norm(x-y)
-    def compatability(x,y):
-         return
+    #compatability = lambda x,y: norm(x-y)/len(x)
+    compatability = lambda x,y: np.mean((x-y)**2)
 
     print(compute_energy(file = "Original_Squirrel.jpg", color=True, energyFunction = compatability))
     print(compute_energy(file = "Squirrel_Puzzle.jpg", color=True, energyFunction = compatability))
-    print(compute_energy("test.jpg"))
-    print(compute_energy("Original_RainbowFlower.jpg"))
-    print(compute_energy("annealing-color.jpg"))
+    print(compute_energy("test.jpg",True,compatability))
+    print(compute_energy("Original_RainbowFlower.jpg",True,compatability))
+    print(compute_energy("annealing-color.jpg",True,compatability))
