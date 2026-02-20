@@ -9,7 +9,7 @@ Setup
 
 '''Deicde color or non-color'''
 
-color = False
+color = True
 
 '''Load in the test file (permanent)'''
 
@@ -217,7 +217,7 @@ class Genome:
             # the other easy alternative is to create an array that is 17 x 17 and then crop it at the end, but for larger puzzles that would require an unfeasable amount of memory, though would probably run faster.
             # Thus since it would probably scale better with the size of the puzzle we opt for the dynamic array.
             # we fill the array with -1s so that it does not confuse these empty spots with any of the indicies of self. tile_data
-            self.grid = -np.ones((1,1),dtype=np.uint8)
+            self.grid = -np.ones((1,1),dtype=int)
 
             #seed the child with the first tile.
             # quickest way to search is to just go through every every other element of one parent, find the element in the other, and then check the neighbors of both in each direction to see if they match
@@ -516,19 +516,19 @@ class Genome:
         
         def add_row_above(self):
             num_cols = self.grid.shape[1]
-            self.grid = np.vstack((-np.ones((1,num_cols),dtype=np.uint8), self.grid)) # whithout setting dtype=int it turns the entire array into a float but we need it as an int since these are indicies
+            self.grid = np.vstack((-np.ones((1,num_cols),dtype=int), self.grid)) # whithout setting dtype=int it turns the entire array into a float but we need it as an int since these are indicies
             
         def add_row_below(self):
             num_cols = self.grid.shape[1]
-            self.grid = np.vstack((self.grid,-np.ones((1,num_cols), dtype=np.uint8)))
+            self.grid = np.vstack((self.grid,-np.ones((1,num_cols), dtype=int)))
 
         def add_column_left(self):
             num_rows = self.grid.shape[0]
-            self.grid = np.hstack((-np.ones((num_rows,1),dtype=np.uint8), self.grid))
+            self.grid = np.hstack((-np.ones((num_rows,1),dtype=int), self.grid))
         
         def add_column_right(self):
             num_rows = self.grid.shape[0]
-            self.grid = np.hstack((self.grid,-np.ones((num_rows,1), dtype=np.uint8)))
+            self.grid = np.hstack((self.grid,-np.ones((num_rows,1), dtype=int)))
 
             
         def mutate(self): # my original mutation function. I think this would be an interesting place to slot in simmulated annealing;
@@ -570,7 +570,7 @@ class Genome:
         self.chromosomes.append(child.grid) # add the child to the chromosomes
         self.num_chromosomes += 1
 
-genome = Genome([np.arange(0,64,1,dtype=np.uint8).reshape((8,8))],tiles) # the collection of chromosomes; a list of arrays; jpg can only support int 8 so no need to use anything fancier
+genome = Genome([np.arange(0,64,1,dtype=int).reshape((8,8))],tiles) # the collection of chromosomes; a list of arrays; jpg can only support int 8 so no need to use anything fancier
 
 '''
 Generate Random Chromosomes (members of the solution space)
@@ -599,12 +599,17 @@ num_initial_parents_per_gen = 4 # should set to 4
 
 generation = 1
 
+show = False
+
 while generation <= num_generations:
     genome.chromosomes = genome.n_most_fit(num_initial_parents_per_gen) # get the initial parents
+    genome.anneal_all() # anneal the parents
     genome.num_chromosomes = len(genome.chromosomes)
-    print(f"Best starting energy of generation {generation} is {-genome.fitness(-1)}")
-    print(f"Worst starting energy of generation {generation} is {-genome.fitness(0)}")
-    sleep(2) # give time to read - should comment out if not watching
+    if show:
+        genome.chromosomes = genome.n_most_fit(num_initial_parents_per_gen) # resort after annealing
+        print(f"Best starting energy of generation {generation} is {-genome.fitness(-1)}")
+        print(f"Worst starting energy of generation {generation} is {-genome.fitness(0)}")
+        sleep(2) # give time to read - should comment out if not watching
     while genome.num_chromosomes < num_chromosomes:
         print(f"generation: {generation}, chromosome count: {genome.num_chromosomes}") # to see progress, mainly for debugging
         parent1 = np.random.randint(0,num_initial_parents_per_gen)
@@ -636,7 +641,7 @@ if color:
             resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] = genome.tile_data[dict_index]["entire"]
 
     resotred_page = resotred_page.astype(np.uint8) # jpg can only handle this resolution anyway
-    cv2.imwrite(f"genetic-color.jpg", resotred_page)
+    cv2.imwrite(f"genetic-color-{generation-1}-Generations.jpg", resotred_page)
 else:
     resotred_page = np.zeros((length,width))
 
@@ -644,10 +649,9 @@ else:
         for j in range(genome.grid_shape[1]):
             dict_index = best_child[i,j]
             resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = genome.tile_data[dict_index]["entire"]
-        cv2.imwrite(f"genetic-grayscale.jpg", resotred_page)
+        resotred_page = resotred_page.astype(np.uint8)
+        cv2.imwrite(f"genetic-grayscale-{generation-1}-Generations.jpg", resotred_page)
         
 
 plt.imshow(resotred_page)
-resotred_page.astype(np.uint8) # so that cv2 doesn't have to compress anything
-cv2.imwrite(f"test_output_{generation-1}-Generations.jpg", resotred_page)
 plt.show()
