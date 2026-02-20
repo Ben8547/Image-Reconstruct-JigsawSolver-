@@ -69,6 +69,8 @@ else:
 
     del color_volume # no need to store a large matrix any longer than we need it. We only need the boarders anyway
 
+grid = np.arange(0,64,1,dtype=np.uint8).reshape((8,8)) # the representation of the image; using uint8 because nothing is negative or bigger than 255 and thus using any other integer system would be wasteful
+
 ''' Energy Function '''
 
 compatability = lambda x,y: np.mean((x-y)**2) # energy function
@@ -105,5 +107,55 @@ for i in range(64):
 # in the current case it might actually take longer to open a read a file than just recompute all of the energies
 print("cached tile energies")
 
+'''
+Compute Best-Buddies
+'''
 
 
+'''
+"Smart" Annealing
+Here I try to adjust the annealing in a few ways;
+a) replace my global energy recalculations in each markov step with local ones which should save compute time.
+b) Add more annealing movement options that take into account the global energy information and try to move compatable tiles near each other.
+c) Also try adding some more global rearangements to get blocks of aggregated tiles into the correct absolute position.
+d) Create a more precise tempurature schedule since the current geometrix cooling seems to waste a lot of time spuddling on high tempuratures.
+'''
+
+class simulation_grid:
+    def __init__(self, grid, dict_list, cached_energies):
+        self.simGrid = grid
+        self.tile_data = dict_list
+        self.grid_shape = self.simGrid.shape
+        self.cached_energies = self.cached_energes # as far as I know, this just points to the original array so we are not actually making a copy of the large energy array
+        self.energy = self.total_energy() # set the total energy on creating the class
+        # for all intents and purposes recall that 0 = top, 1 = left, 2 = bottom, 3 = right which is quite a different ordering than the previous verison.
+    
+    def total_energy(self) -> float:
+        energy = 0.
+        for i in range(1,self.grid_shape[0]): # skip firt row
+            for j in range(1,self.grid_shape[1]): # skip first column
+                # we don't want to double count interactions so we first only compute the energies to the left and obove each point (skipping the topmost and leftmost row/column)
+                # then since the edges do not interact we can stop here since each interacting edge has been counted exactly once.
+                energy += self.gradient_interact_energy((i,j))
+        return energy
+    
+    def interaction_energy(self, grid_point:tuple) -> float:
+        '''grid_point is an index of the 2D array self.grid
+        This function computes the interaction energy at the top and left sides of a tile; we only compute these two to prevent overcounting as we iterate through the array
+        We modify this from the frist version in that now we simply need to search the self.cached_energies - this should make the function much faster since we only search an array instead
+        of search several dictionaries and perform arithmetic.'''
+
+        row = grid_point[0]
+        column = grid_point[1]
+
+        top_neighbor = self.tile_data[self.simGrid[row-1,column]]
+        left_neighbor = self.tile_data[self.simGrid[row,column-1]]
+        current = self.tile_data[self.simGrid[row,column]]
+
+        return self.cached_energies[current,top_neighbor,0] + self.cached_energies[current,left_neighbor,1]
+    
+    
+
+
+
+image = simulation_grid(grid, tiles, cache_energies)
