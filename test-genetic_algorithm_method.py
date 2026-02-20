@@ -204,6 +204,21 @@ class Genome:
         ''' Take all of the chromosomes and run them through simmulated annealing, then replace the chromosomes '''
         for i, chromosome in enumerate(self.chromosomes):
             self.chromosomes[i] = self.anneal(chromosome,self.T0, self.temp_decay) # replace the chromosome
+
+    def estimate_T0(self,target_acceptance_rate=0.1, num_samples = 10):
+        '''Add explaination later'''
+        # estimate a T0 for the given state of the chromosomes
+        chromosome = self.chromosomes[-1] # choose the most fit chromosome
+        deltas = []
+        base_energy = self.energy(chromosome)
+        for _ in range(num_samples):
+            trial, new_energy = self.markovStep(chromosome, tempurature=1e9)  # force acceptance with high tempurature
+            deltas.append(abs(new_energy - base_energy))
+
+        mean_delta = np.mean(deltas)
+        Temperature = -mean_delta / np.log(target_acceptance_rate)
+        
+        return Temperature
     
     class Child:
         def __init__(self, parent1, parent2, outerself):
@@ -599,10 +614,16 @@ num_initial_parents_per_gen = 4 # should set to 4
 
 generation = 1
 
-show = False
+genome.T0 = genome.estimate_T0(0.1,10) # set T0 to much lower now that we are done with the initial seeding; don't want to reverse our progress
+print(f"T0 set to {genome.T0}")
+sleep(4) # give time to read output
+
+show = False # True is I plan to watch the simulation - set to false otherwise
 
 while generation <= num_generations:
     genome.chromosomes = genome.n_most_fit(num_initial_parents_per_gen) # get the initial parents
+    genome.T0 = genome.estimate_T0(0.1,10) # set T0 to much lower now that we are done with the initial seeding; don't want to reverse our progress
+    print(f"T0 set to {genome.T0}")
     genome.anneal_all() # anneal the parents
     genome.num_chromosomes = len(genome.chromosomes)
     if show:
