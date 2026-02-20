@@ -264,9 +264,9 @@ class simulation_grid: # the grid defined above is a member of this class when c
 
                 return energy
         
-        choice = np.random.randint(0,2)
+        choice = np.random.randint(0,4)
         new_grid = np.copy(self.simGrid) # grid to store the purtubation in
-        if choice == 0:
+        if choice <= 2: # 75% chance 
             while (point1 == point2) and (count < 10): # ensures (to an reasonable extent) that we swap two distinct points
                 point1 = (np.random.randint(0,self.grid_shape[0]), np.random.randint(0,self.grid_shape[1]))
                 point2 = (np.random.randint(0,self.grid_shape[0]), np.random.randint(0,self.grid_shape[1]))
@@ -315,7 +315,7 @@ class simulation_grid: # the grid defined above is a member of this class when c
             new_energy_contribution = new.total_energy()
             del new
 
-        elif choice == 1: # swap sides of grid
+        elif choice == 3: # swap sides of grid; 25% chance
             if np.random.randint(0,2) == 0: # choose row
                 row  = np.random.randint(1,self.grid_shape[0]) # choose random row index; don't allow first row since this will result in an unperturbed array
                 #new_grid[row:,:] = new_grid[:-row,:]
@@ -368,7 +368,7 @@ class simulation_grid: # the grid defined above is a member of this class when c
 
 page = simulation_grid(grid,tiles)
 
-restored = page.reconstruct_page(0.9999,100.) # 0.9999, 200.
+restored = page.reconstruct_page(0.99999,10.) # 0.9999, 200.
 
 '''Now that we have the ordered array, all that remains is to put the grayscale map back together.'''
 

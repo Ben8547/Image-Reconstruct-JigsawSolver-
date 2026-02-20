@@ -143,9 +143,9 @@ class Genome:
         point2 = (0,0)
         count = 0
 
-        choice = np.random.randint(0,3)
+        choice = np.random.randint(0,4)
         new_grid = np.copy(chromosome) # grid to store the purtubation in
-        if choice == 0:
+        if choice < 3: # 75% chance
             while (point1 == point2) and (count < 10): # ensures (to an reasonable extent) that we swap two distinct points
                 point1 = (np.random.randint(0,self.grid_shape[0]), np.random.randint(0,self.grid_shape[1]))
                 point2 = (np.random.randint(0,self.grid_shape[0]), np.random.randint(0,self.grid_shape[1]))
@@ -158,7 +158,7 @@ class Genome:
             new_grid[point2] = chromosome[point1]
             #print(new_grid - self.simGrid) # debug
 
-        elif choice == 1: # swap sides of grid
+        elif choice == 3: # swap sides of grid
             if np.random.randint(0,2) == 0: # choose row
                 row  = np.random.randint(1,self.grid_shape[0]) # choose random row index; don't allow first row since this will result in an unperturbed array
                 new_grid[row:,:] = new_grid[:-row,:]
@@ -169,13 +169,6 @@ class Genome:
                 new_grid[:,col:] = new_grid[:,:-col]
                 new_grid[:,:col] = chromosome[:,-col:] # sets the first n rows equal the last n rows
                 del col
-
-        elif choice == 2: # rotate the pieces
-            index = np.random.randint(1,self.grid_shape[1]) # needs to be square so we only use one index
-            if np.random.randint(0,2) == 0:
-                new_grid[:index,:index] = np.rot90(new_grid[:index,:index])
-            else:
-                new_grid[index:,index:] = np.rot90(new_grid[index:,index:])
 
             del index
         
@@ -602,6 +595,8 @@ for _ in range(num_chromosomes_to_seed_with):
     genome.chromosomes.append(np.random.permutation(genome.chromosomes[0].ravel()).reshape(genome.chromosomes[0].shape)) # takes in the array and randomly permutes the elements - this will generate our initial chromosomes.
 genome.num_chromosomes = num_chromosomes_to_seed_with
 
+genome.T0 = genome.estimate_T0(0.5,10) # seems to be about 100 for the Manga image; better than the 200 I set it to manually
+
 genome.anneal_all() # replace all of the chromosome with the annealed version
 print("initial annealing complete")
 
@@ -616,15 +611,16 @@ generation = 1
 
 genome.T0 = genome.estimate_T0(0.1,10) # set T0 to much lower now that we are done with the initial seeding; don't want to reverse our progress
 print(f"T0 set to {genome.T0}")
-sleep(4) # give time to read output
+#sleep(4) # give time to read output
 
 show = False # True is I plan to watch the simulation - set to false otherwise
 
 while generation <= num_generations:
     genome.chromosomes = genome.n_most_fit(num_initial_parents_per_gen) # get the initial parents
-    genome.T0 = genome.estimate_T0(0.1,10) # set T0 to much lower now that we are done with the initial seeding; don't want to reverse our progress
+    genome.T0 = genome.estimate_T0(0.05,10) # set T0 to much lower now that we are done with the initial seeding; don't want to reverse our progress
     print(f"T0 set to {genome.T0}")
-    genome.anneal_all() # anneal the parents
+    if generation != 1: # don't do this on the first generation since we alreadt seeded with annealing
+        genome.anneal_all() # anneal the parents
     genome.num_chromosomes = len(genome.chromosomes)
     if show:
         genome.chromosomes = genome.n_most_fit(num_initial_parents_per_gen) # resort after annealing

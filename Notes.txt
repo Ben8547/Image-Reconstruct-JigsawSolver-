@@ -44,5 +44,7 @@ Another issue that I thing plagues this particular application and not the puzzl
 
 2-19-2026 18:09 : I spuddled on improving the computational efficiency of the Markov step; tried to only recalculate local energies. I wrote a bunch of code, but ended up with negative energies which should not be possible. Thus I gave up after several hours and commented out what I wrote and went back to global energy calc. If we want to solve larger puzzles at some point I need to revisit this. In other news, using the L2 norm, the squirrel puzzle has lower energy than the original. When I switched to np.mean((x-y)**2) the original now has lower energy. This is ideal so I am changing the energy function to this permanently (unless I find a better energy function).
 
-2-19-2026 
+2-19-2026 19:46 : Eventually when I rewrite these codes in a more efficient way, it would be worth caching local energies so that I can target movement in annealing to areas with high local energy. I think that for tomorrow, next steps are to work on caching the energies of each tile pairing upfront in an array and then using the table to make informed movement decisions. Using this with the annealing makes it less random and could help to increase the efficacy of the algorithm.
+
+2-19-2026 1952 : Final note for today because I need to work on Joel's project, running the pure annealing algorithm at a geometric decay rate of 0.99999 yielded a final energy of 5718.436868686868.
 
