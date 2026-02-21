@@ -44,10 +44,10 @@ if not color:
     for i in range(8):
         for j in range(8):
             tiles.append({
-                "top": gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)],
-                "bottom": gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
-                "left": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j],
-                "right": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1],
+                0: gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)],
+                2: gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
+                1: gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j],
+                3: gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1],
                 "entire": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] # need this last one to reconstruct the array later
             })
     del gray_matrix # no need to store a large matrix any longer than we need it. We only need the boarders anyway
@@ -122,17 +122,16 @@ Here I try to adjust the annealing in a few ways;
 a) replace my global energy recalculations in each markov step with local ones which should save compute time.
 b) Add more annealing movement options that take into account the global energy information and try to move compatable tiles near each other.
 c) Also try adding some more global rearangements to get blocks of aggregated tiles into the correct absolute position.
-d) Create a more precise tempurature schedule since the current geometrix cooling seems to waste a lot of time spuddling on high tempuratures.
+d) Create a more precise temperature schedule since the current geometrix cooling seems to waste a lot of time spuddling on high temperatures.
 '''
 
 class simulation_grid:
     def __init__(self, grid, dict_list, cached_energies):
         self.simGrid = grid
-        self.paddedGrid = np.copy(grid)
-        self.pad(self.paddedGrid) # pad the simGrid; important to facilitate vectorization of certain methods though this does warent more careful indexing.
+        self.paddedGrid = self.pad(grid) # pad the simGrid; important to facilitate vectorization of certain methods though this does warent more careful indexing.
         self.tile_data = dict_list
-        self.grid_shape = self.simGrid.shape # note that this is the shape of the padded grid, not the unpadded grid
-        self.cached_energies = self.cached_energes # as far as I know, this just points to the original array so we are not actually making a copy of the large energy array
+        self.grid_shape = self.simGrid.shape # note that this is the shape of the non-padded
+        self.cached_energies = cached_energies # as far as I know, this just points to the original array so we are not actually making a copy of the large energy array
         self.energy = self.total_energy() # set the total energy on creating the class
         # for all intents and purposes recall that 0 = top, 1 = left, 2 = bottom, 3 = right which is quite a different ordering than the previous verison.
     
@@ -145,8 +144,8 @@ class simulation_grid:
         top_neighbors  = self.simGrid[:-1, :] # returns the matrix from the topmost row the second to penultimate row; these will all have their bottoms measured
         left_neighbors = self.simGrid[:, :-1]
 
-        energy_top = np.sum(cache_energies[top_current, top_neighbors, 0])
-        energy_left = np.sum(cache_energies[left_current, left_neighbors, 1])
+        energy_top = np.sum(self.cached_energies[top_current, top_neighbors, 0])
+        energy_left = np.sum(self.cached_energies[left_current, left_neighbors, 1])
 
         return energy_top + energy_left
     
@@ -157,14 +156,14 @@ class simulation_grid:
         top_neighbors  = grid[:-1, :] # returns the matrix from the topmost row the second to penultimate row; these will all have their bottoms measured
         left_neighbors = grid[:, :-1]
 
-        energy_top = np.sum(cache_energies[top_current, top_neighbors, 0])
-        energy_left = np.sum(cache_energies[left_current, left_neighbors, 1])
+        energy_top = np.sum(self.cached_energies[top_current, top_neighbors, 0])
+        energy_left = np.sum(self.cached_energies[left_current, left_neighbors, 1])
 
         return energy_top + energy_left
     
     def check_boundary(self, grid_points:np.ndarray) -> np.ndarray:
             """
-            This function determines which sides of a specified grid_point are on the boundary of the grid.
+            This function determines which sides of a specified grid_point are on the boundary of the grid. In input points should be from the unpadded array.
             The previous version could only process a single coordinate pair at a time, I have changed this in the following way:
             now instead of inputting a tuple we input an Nx2 array where N is the number of points that we want to check.
             We then do logic on the array.
@@ -183,35 +182,39 @@ class simulation_grid:
     
     def pad(self, array:np.ndarray) -> np.ndarray: # this is important for vectorizing many of the operations in this class but sees no direct use outside of the initialization of the class
         '''Adds a padding of -1 along each exposed face of a 2D array'''
-        # modifies the array in place to conserve memory
         shape = array.shape
         # add top and bottom
+        array = array.astype(np.int8) # we need to switch from uint8 since we are adding -1s.
         array = np.vstack([-np.ones((1,shape[1])), array])
         array = np.vstack([array, -np.ones((1,shape[1]))])
         # add left/right
         array = np.hstack([-np.ones((shape[0]+2,1)), array])
         array = np.hstack([array, -np.ones((shape[0]+2,1))])
+        return array
     
-    def local_energy(self,grid_points:np.ndarray) -> float:
+    def local_energy(self,grid,grid_points:np.ndarray) -> float:
         '''Finds the energy of a single grid tile. Note that this is different from the interaction energy function above as this function returns
         the energy on each side and not just on the top and left sides
-        The function takes in an Nx2 array of coordinates for N points. It returns a length N array'''
-        rows = grid_points[:,0]
-        columns = grid_points[:,1]
+        The function takes in an Nx2 array of coordinates for N points. It returns a length N array
+        We use the padded array here to allow indexing withough if statements. We remove the -1s by musltiplying them by False
+        Note that the input grid_points should be for the unpadded array - we convert to the padded indicies herein'''
+        rows = grid_points[:,0]+1
+        columns = grid_points[:,1]+1
+        # adding one account for the extra later of padding
 
         boundaries = self.check_boundary(grid_points) # Nx4 array
         current = grid[rows,columns] # array
 
-
-        top_energy = boundaries[:,0] * self.cached_energies[current,grid[rows-1,columns],0] # my multiplying by the boolean array we zero out the padding
-        left_energy = boundaries[:,1] * self.cached_energies[current,grid[rows,columns-1],0] 
-        bottom_energy = boundaries[:,2] * self.cached_energies[current,grid[rows+1,columns],0] 
-        right_energy = boundaries[:,3] * self.cached_energies[current,grid[rows,columns+1],0] 
+        # I'm glad I watched that video on branchless code in C the other day, it is quite applicable and I probably would not have though to do this otherwise
+        top_energy = boundaries[:,0] * self.cached_energies[current,grid[rows-1,columns],0] # by multiplying by the boolean array we zero out the padding
+        left_energy = boundaries[:,1] * self.cached_energies[current,grid[rows,columns-1],1] 
+        bottom_energy = boundaries[:,2] * self.cached_energies[current,grid[rows+1,columns],2] 
+        right_energy = boundaries[:,3] * self.cached_energies[current,grid[rows,columns+1],3] 
 
         return top_energy + left_energy + bottom_energy + right_energy # total energy of local interactions
 
     
-    def markovStep(self, tempurature: float):
+    def markovStep(self, temperature: float):
         '''
         Docstring for markovStep
         Mutates the self grid in accordance with the metropolis algorithm
@@ -219,14 +222,37 @@ class simulation_grid:
 
         mode = randint(0,4) # choose from several difference mutation options at random
 
+        '''Ideally at some point we make each move dependant on the tempurature schedule; we prefer larger moves at low T so that we can cement absolute positions
+        though we might have to implement the genetic algorithm again to get the absolute positions, the idea in that method was decent'''
+
         if mode == 0 or mode == 3: # swap two points with a preference for swapping points with high local energies
             ''' We are changing this from the previous version to bias choosing points with high local energies
              We can use self.cached_energies to quickly lookup the local energy of a tile in O(1) time - just indexing an array at most four times
              There is still some small chance to swap two random rows'''
+            Falied = False
             if random() < 0.95: # with 95% chance sample some pieces and choose the one with the highest local energy to swap with another point with high local energy
                 # sample 20 pieces from the puzzle and compute their local energies
-            
-            else: # with 5% chance swap two random pieces
+                samples = choice(self.simGrid,20,replace=False)
+                worst_sample = samples[np.argmax(self.local_energy(self.simGrid,s) for s in samples)] # Gets sampled with the highest local energy; could probably vectotize but would need to rewrite the local_energy function
+                # now we choose a direction and find its most optimal position in that direction and swap with the tile current in that position.
+                d = randint(0,4)
+                best_partner = np.argmin(self.cached_energies[worst_sample,:,d]) # should return the index of the best partner in that direction
+                # make the swap:
+                piece_location = np.argwhere(self.simGrid == worst_sample)
+                partner_location = np.argwhere( self.simGrid == best_partner )
+                partner_location[0] += (d - 1) * ( d%2 == 0 )  # add to the indicies depending on direction. If d=0 we change by -1, if d = 2 we change by +1 else by 0. Thus we can take d-1 but only if d is even
+                partner_location[1] += (d - 2) * (d%2 == 1) # need -1 if d = 1 and +1 if d = 3 else 0. d-2 if odd should work; I'm am quite proud of myself for the branchless logic today.
+                # we still have not accounted for the piece being on the boarder
+                if partner_location[0] < 0 or partner_location[0] > self.grid_shape[0]-1 or partner_location[1] < 0 or partner_location[1] > self.grid_shape[1]-1:
+                    Falied = True # Then the swap is not valid so we move to a random swap instead
+                else: # then we proceed with the swap
+                    new_grid = np.copy(self.simGrid)
+                    new_grid[partner_location] = self.simGrid[piece_location]
+                    new_grid[piece_location] = self.simGrid[partner_location]
+            else: # with 5% chance swap two random pieces (more than 5% once you account for the failed swaps above)
+                Falied = True
+
+            if Falied: # make a random swap
                 piece_rows = choice(list(range(self.grid_shape[0])),2,replace=False)
                 piece_cols = choice(list(range(self.grid_shape[1])),2,replace=False) # choosing the indicies for the points to swap
 
@@ -262,9 +288,9 @@ class simulation_grid:
         previous_contribution = self.energy # I do want to add these into the indevidual blocks; but for testing purposes and while the grids are small enough, I'll keep them here and recompute the entire grid energy
         new_contribution = self.total_energy_grid(new_grid)
 
-        energy_change = previous_contribution - new_contribution
+        energy_change = new_contribution - previous_contribution
 
-        boltzmann_factor = np.exp(-energy_change/tempurature)
+        boltzmann_factor = np.exp(-energy_change/temperature)
 
         if random() < boltzmann_factor: # always except whern previous >= new, sometimes accept an increase in the energy - dig out of local minima.
             self.simGrid = new_grid
