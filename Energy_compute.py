@@ -51,25 +51,57 @@ def compute_energy(file,color=True, energyFunction=lambda x,y: np.linalg.norm(x-
         for i in range(8):
             for j in range(8):
                 tiles.append({
-                    "top": color_volume[tile_length*i,tile_width*j:tile_width*(j+1),:],
-                    "bottom": color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1),:],
-                    "left": color_volume[tile_length*i:tile_length*(i+1),tile_width*j,:],
-                    "right": color_volume[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1,:]
+                    0: color_volume[tile_length*i,tile_width*j:tile_width*(j+1),:],
+                    2: color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1),:],
+                    1: color_volume[tile_length*i:tile_length*(i+1),tile_width*j,:],
+                    3: color_volume[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1,:]
                 })
 
         del color_volume # no need to store a large matrix any longer than we need it. We only need the boarders anyway
+
+    cache_energies = np.zeros((64,64,4),dtype=float)
+
+    for i in range(64):
+        for j in range(64):
+            for d_i in range(4):
+                if i == j: # diagonal elements are set to infinite since they can never happen anyway
+                    cache_energies[i,j,d_i] = np.inf
+                else:
+                    cache_energies[i,j,d_i] = compatability( tiles[i][d_i], tiles[j][(d_i + 2) % 4] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
+
     
-    return total_energy(grid,tiles,energyFunction)
+    return total_energy(grid,cache_energies)
 
 
-def total_energy(simGrid,tile_data,energyFunction):
-        energy = 0.
-        for i in range(1,simGrid.shape[0]): # skip firt row
-            for j in range(1,simGrid.shape[1]): # skip first column
-                # we don't want to double count interactions so we first only compute the energies to the left and obove each point (skipping the topmost and leftmost row/column)
-                # then since the edges do not interact we can stop here since each interacting edge has been counted exactly once.
-                energy += interaction_energy(simGrid,tile_data,(i,j),energyFunction)
-        return energy
+def total_energy(simGrid, cache_energies):
+
+    # only rows 1..N-1 AND columns 1..N-1
+    top_current = simGrid[1:, :]
+    left_current = simGrid[:,1:]
+    
+    top_neighbors  = simGrid[:-1, :]
+    left_neighbors = simGrid[:, :-1]
+
+    energy_top = np.sum(cache_energies[top_current, top_neighbors, 0])
+    energy_left = np.sum(cache_energies[left_current, left_neighbors, 1])
+
+    return energy_top + energy_left
+    """energy = 0.
+    for i in range(1,simGrid.shape[0]): # skip firt row
+        for j in range(1,simGrid.shape[1]): # skip first column
+            # we don't want to double count interactions so we first only compute the energies to the left and obove each point (skipping the topmost and leftmost row/column)
+            # then since the edges do not interact we can stop here since each interacting edge has been counted exactly once.
+            energy += interaction_energy(simGrid,tile_data,(i,j),energyFunction)"""
+    return energy_left+energy_top
+
+'''def total_energy(simGrid, cache):
+    energy = 0.0
+    for i in range(1, simGrid.shape[0]):
+        for j in range(1, simGrid.shape[1]):
+            c = simGrid[i,j]
+            energy += cache[c, simGrid[i-1,j], 0]
+            energy += cache[c, simGrid[i,j-1], 1]
+    return energy'''
 
 def interaction_energy(simGrid, tile_data, grid_point:tuple, energyFunction) -> float:
         '''

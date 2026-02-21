@@ -72,6 +72,7 @@ else:
 
 grid = np.arange(0,64,1,dtype=np.uint8).reshape((8,8)) # the representation of the image; using uint8 because nothing is negative or bigger than 255 and thus using any other integer system would be wasteful
 
+
 tiles = np.array(tiles, dtype=object) # apparently you can make a list of dictionaries into an array - this makes indexing later much easier - this is a change from the previous version
 
 ''' Energy Function '''
@@ -104,7 +105,7 @@ for i in range(64):
             if i == j: # diagonal elements are set to infinite since they can never happen anyway
                 cache_energies[i,j,d_i] = np.inf
             else:
-                cache_energies[i,j,d_i] = compatability( tiles[i][d_i], tiles[j][(d_i + 2) % 4] )
+                cache_energies[i,j,d_i] = compatability( tiles[i][d_i], tiles[j][(d_i + 2) % 4] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
 
 # this is actually suprisingly quick to compute though probably won't scale well for large puzzles. Luckily we only care about 64x64 right now.
 # in the current case it might actually take longer to open a read a file than just recompute all of the energies
@@ -127,44 +128,39 @@ d) Create a more precise tempurature schedule since the current geometrix coolin
 class simulation_grid:
     def __init__(self, grid, dict_list, cached_energies):
         self.simGrid = grid
+        self.paddedGrid = np.copy(grid)
+        self.pad(self.paddedGrid) # pad the simGrid; important to facilitate vectorization of certain methods though this does warent more careful indexing.
         self.tile_data = dict_list
-        self.grid_shape = self.simGrid.shape
+        self.grid_shape = self.simGrid.shape # note that this is the shape of the padded grid, not the unpadded grid
         self.cached_energies = self.cached_energes # as far as I know, this just points to the original array so we are not actually making a copy of the large energy array
         self.energy = self.total_energy() # set the total energy on creating the class
         # for all intents and purposes recall that 0 = top, 1 = left, 2 = bottom, 3 = right which is quite a different ordering than the previous verison.
     
     def total_energy(self) -> float:
-        energy = 0.
-        for i in range(1,self.grid_shape[0]): # skip firt row
-            for j in range(1,self.grid_shape[1]): # skip first column
-                # we don't want to double count interactions so we first only compute the energies to the left and obove each point (skipping the topmost and leftmost row/column)
-                # then since the edges do not interact we can stop here since each interacting edge has been counted exactly once.
-                energy += self.gradient_interact_energy(self.simGrid,(i,j))
-        return energy
+        '''This should be much faster since I only use no explicit python loops instead of the 2 from the previous version
+        Use the non-padded array: we don't need to do anything fancy with the edges so this is just easier'''
+        top_current = self.simGrid[1:, :]
+        left_current = self.simGrid[:,1:]
+    
+        top_neighbors  = self.simGrid[:-1, :] # returns the matrix from the topmost row the second to penultimate row; these will all have their bottoms measured
+        left_neighbors = self.simGrid[:, :-1]
+
+        energy_top = np.sum(cache_energies[top_current, top_neighbors, 0])
+        energy_left = np.sum(cache_energies[left_current, left_neighbors, 1])
+
+        return energy_top + energy_left
     
     def total_energy_grid(self,grid) -> float: # same as the above function except uses an arbitrary grid instead of self.simGrid; grid must have the same shape as self.simGrid 
-        energy = 0.
-        for i in range(1,self.grid_shape[0]): # skip firt row
-            for j in range(1,self.grid_shape[1]): # skip first column
-                # we don't want to double count interactions so we first only compute the energies to the left and obove each point (skipping the topmost and leftmost row/column)
-                # then since the edges do not interact we can stop here since each interacting edge has been counted exactly once.
-                energy += self.gradient_interact_energy(grid,(i,j))
-        return energy
+        top_current = grid[1:, :]
+        left_current = grid[:,1:]
     
-    def interaction_energy(self, grid, grid_point:tuple) -> float:
-        '''grid_point is an index of the 2D array self.grid
-        This function computes the interaction energy at the top and left sides of a tile; we only compute these two to prevent overcounting as we iterate through the array
-        We modify this from the frist version in that now we simply need to search the self.cached_energies - this should make the function much faster since we only search an array instead
-        of search several dictionaries and perform arithmetic.'''
+        top_neighbors  = grid[:-1, :] # returns the matrix from the topmost row the second to penultimate row; these will all have their bottoms measured
+        left_neighbors = grid[:, :-1]
 
-        row = grid_point[0]
-        column = grid_point[1]
+        energy_top = np.sum(cache_energies[top_current, top_neighbors, 0])
+        energy_left = np.sum(cache_energies[left_current, left_neighbors, 1])
 
-        top_neighbor = self.tile_data[grid[row-1,column]]
-        left_neighbor = self.tile_data[grid[row,column-1]]
-        current = self.tile_data[grid[row,column]]
-
-        return self.cached_energies[current,top_neighbor,0] + self.cached_energies[current,left_neighbor,1]
+        return energy_top + energy_left
     
     def check_boundary(self, grid_points:np.ndarray) -> np.ndarray:
             """
@@ -176,7 +172,6 @@ class simulation_grid:
             """
             rows = grid_points[:,0] # 1D array of all row coordinates
             cols = grid_points[:,1] # 1D array of all column coordinates
-            shape = self.grid_shape
 
             top_open = rows > 0 # True when not bordering the top of the array  
             bottom_open = rows < self.grid_shape[0]-1
@@ -186,6 +181,17 @@ class simulation_grid:
 
             return np.vstack([top_open, left_open, bottom_open, right_open]).reshape((4,len(rows))).transpose() # this was a dictionary but not it is an Nx4 array where the second dimension takes the standard direction ordering thus far.
     
+    def pad(self, array:np.ndarray) -> np.ndarray: # this is important for vectorizing many of the operations in this class but sees no direct use outside of the initialization of the class
+        '''Adds a padding of -1 along each exposed face of a 2D array'''
+        # modifies the array in place to conserve memory
+        shape = array.shape
+        # add top and bottom
+        array = np.vstack([-np.ones((1,shape[1])), array])
+        array = np.vstack([array, -np.ones((1,shape[1]))])
+        # add left/right
+        array = np.hstack([-np.ones((shape[0]+2,1)), array])
+        array = np.hstack([array, -np.ones((shape[0]+2,1))])
+    
     def local_energy(self,grid_points:np.ndarray) -> float:
         '''Finds the energy of a single grid tile. Note that this is different from the interaction energy function above as this function returns
         the energy on each side and not just on the top and left sides
@@ -193,14 +199,14 @@ class simulation_grid:
         rows = grid_points[:,0]
         columns = grid_points[:,1]
 
-        boundaries = self.check_boundary(grid_points)
-        current = self.tile_data[grid[rows,columns]]
+        boundaries = self.check_boundary(grid_points) # Nx4 array
+        current = grid[rows,columns] # array
 
 
-        top_energy = self.cached_energies[self.tile_data[current,grid[row-1,column]],0] if boundaries[0] else 0. # only compute the energy on the top if there is a top neighbour
-        left_energy = self.cached_energies[self.tile_data[current,grid[row,column-1]],1] if boundaries[1] else 0.
-        bottom_energy = self.cached_energies[self.tile_data[current,grid[row+1,column]],2] if boundaries[2] else 0.
-        right_energy = self.cached_energies[self.tile_data[current,grid[row,column+1]],3] if boundaries[3] else 0.
+        top_energy = boundaries[:,0] * self.cached_energies[current,grid[rows-1,columns],0] # my multiplying by the boolean array we zero out the padding
+        left_energy = boundaries[:,1] * self.cached_energies[current,grid[rows,columns-1],0] 
+        bottom_energy = boundaries[:,2] * self.cached_energies[current,grid[rows+1,columns],0] 
+        right_energy = boundaries[:,3] * self.cached_energies[current,grid[rows,columns+1],0] 
 
         return top_energy + left_energy + bottom_energy + right_energy # total energy of local interactions
 

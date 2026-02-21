@@ -46,5 +46,14 @@ Another issue that I thing plagues this particular application and not the puzzl
 
 2-19-2026 19:46 : Eventually when I rewrite these codes in a more efficient way, it would be worth caching local energies so that I can target movement in annealing to areas with high local energy. I think that for tomorrow, next steps are to work on caching the energies of each tile pairing upfront in an array and then using the table to make informed movement decisions. Using this with the annealing makes it less random and could help to increase the efficacy of the algorithm.
 
-2-19-2026 1952 : Final note for today because I need to work on Joel's project, running the pure annealing algorithm at a geometric decay rate of 0.99999 yielded a final energy of 5718.436868686868.
+2-19-2026 19:52 : Final note for today because I need to work on Joel's project, running the pure annealing algorithm at a geometric decay rate of 0.99999 yielded a final energy of 5718.436868686868.
+
+2-20-2026 17:55 : I stated writing a new file called version3.py today in which I attempt to improve upon the pure annealing method. This will mainly be a running list of changes I am making for reference:
+	grid is now padded with an extra layer of -1s so that we can index the array in a vectorized way without having to worry about the ; this will change how I have to do my indexing since every row and column index is not 1 more.
+	tiles (the list of dictionaries) was replaced with an array of dictionaries. I would have done this before if I'd know you could have an array of dictionaries.
+	We cached every possible interaction energy upfront. This should save computation time.
+	Rewrote most functions in a vectorized version - this was difficult as I am not used to thinking in vectorization at all.
+
+2-21-2026 0:19 : I think there was an error in the computation of the original energy functions where the double loop meant that the left energies in the top row and top energies in the left column were not counted, I have fixed this in the vectorized version. - Looking back on the outputs there do seem to be fewer matches on the left and top which makes sense in retrospect.
+	
 
