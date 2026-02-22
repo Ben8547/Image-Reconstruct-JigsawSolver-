@@ -1,5 +1,7 @@
 My take on the jigsaw problem. **This is project is currently a work in progress**.
 
+![alt text]([https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png](https://github.com/Ben8547/Image-Reconstruct-JigsawSolver-/blob/main/ReadMeImages/pure_annealed_squirrel_single_swaps_only.jpg) "Logo Title Text 1")
+
 Each file represents an implementation of a distinct method.
 
 * Make_Puzzle.py transforms and image into a scrambled puzzle.
