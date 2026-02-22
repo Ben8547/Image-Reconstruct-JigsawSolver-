@@ -145,8 +145,7 @@ if __name__ == "__main__":
     #compatability = lambda x,y: norm(x-y)/len(x)
     compatability = lambda x,y: np.mean((x-y)**2)
 
-    print(compute_energy(file = "Original_Squirrel.jpg", color=True, energyFunction = compatability))
-    print(compute_energy(file = "Squirrel_Puzzle.jpg", color=True, energyFunction = compatability))
-    print(compute_energy("test.jpg",True,compatability))
-    print(compute_energy("Original_RainbowFlower.jpg",True,compatability))
-    print(compute_energy("annealing-color.jpg",True,compatability))
+    print(compute_energy(file = "Inputs/"+"Original_Squirrel.jpg", color=True, energyFunction = compatability))
+    print(compute_energy(file = "Inputs/"+"Squirrel_Puzzle.jpg", color=True, energyFunction = compatability))
+    print(compute_energy("Inputs/"+"test.jpg",True,compatability))
+    print(compute_energy("Inputs/"+"Original_RainbowFlower.jpg",True,compatability))

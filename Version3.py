@@ -207,8 +207,7 @@ class simulation_grid:
 
             # make the swap
             new_grid = np.copy(self.simGrid)
-            new_grid[partner_location[0]:partner_location[0]+width+1,partner_location[1]:partner_location[1]+length+1] = self.simGrid[samples[0]:samples[0]+width+1,samples[1]:samples[1]+length+1]
-            new_grid[samples[0]:samples[0]+width+1,samples[1]:samples[1]+length+1] = self.simGrid[partner_location[0]:partner_location[0]+width+1,partner_location[1]:partner_location[1]+length+1]
+            ...
 
         previous_contribution = self.energy # I do want to add these into the indevidual blocks; but for testing purposes and while the grids are small enough, I'll keep them here and recompute the entire grid energy
         new_contribution = self.total_energy_grid(new_grid)
@@ -257,7 +256,7 @@ if __name__ == "__main__": # so that we can just import the class if desired
 
     '''Load in the test file (permanent)'''
 
-    file = "RainbowFlower_Puzzle.jpg"
+    file = "Squirrel_Puzzle.jpg"
 
     if color:
         color_volume = cv2.imread("Inputs/"+file, cv2.IMREAD_COLOR)
