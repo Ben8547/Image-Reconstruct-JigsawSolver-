@@ -1,18 +1,18 @@
 My take on the jigsaw problem. **This is project is currently a work in progress**.
 
-The annealing algorithm has the capability to make 4 different moves. With 50% probability, it will swap two tiles (95% chance to choose a swap based on ideal compatability within a random sample of tile), with 25% probabilty it will perform a roll operation on the representation matrix and with 25% probability it will swap two rectangular regions. To determine the efficacy of each of these operations consider the following example outputs each generated from the same puzzle image.
+The annealing algorithm has the capability to make 4 different moves. With 50% probability, it will swap two tiles (95% chance to choose a swap based on ideal compatability within a random sample of tile), with 25% probabilty it will perform a roll operation on the representation matrix and with 25% probability it will swap two rectangular regions. To determine the efficacy of each of these operations consider the following example outputs each generated from the same puzzle image with an energy of 11512. The original squirrel has an energy of 7404.
 
 <figure>
   <img src="https://raw.githubusercontent.com/Ben8547/Image-Reconstruct-JigsawSolver-/main/ReadMeImages/pure_annealed_squirrel_single_swaps_only.jpg" width="300"/>
-  <figcaption><em>Figure 1: Result of simulated annealing with single swaps only.</em></figcaption>
+  <figcaption><em>Figure 1: Result of simulated annealing with single swaps only. The final energy was 9792.</em></figcaption>
 </figure>
 <figure>
   <img src="https://github.com/Ben8547/Image-Reconstruct-JigsawSolver-/blob/main/ReadMeImages/pure_annealed_squirrel_rolls_only.jpg" width="300"/>
-  <figcaption><em>Figure 1: Result of simulated annealing with rolls only.</em></figcaption>
+  <figcaption><em>Figure 1: Result of simulated annealing with rolls only. The final energy was 11447.</em></figcaption>
 </figure>
 <figure>
   <img src="https://raw.githubusercontent.com/Ben8547/Image-Reconstruct-JigsawSolver-/main/ReadMeImages/pure_annealed_squirrel_with_rolls.jpg" width="300"/>
-  <figcaption><em>Figure 2: Result of simulated annealing with single swaps and rolls.</em></figcaption>
+  <figcaption><em>Figure 2: Result of simulated annealing with single swaps and rolls. The final energy was 8763.</em></figcaption>
 </figure>
 
 Each file represents an implementation of a distinct method.
