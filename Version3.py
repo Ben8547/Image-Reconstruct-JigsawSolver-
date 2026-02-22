@@ -14,11 +14,11 @@ Setup
 
 '''Deicde color or non-color'''
 
-color = False
+color = True
 
 '''Load in the test file (permanent)'''
 
-file = "test.jpg"
+file = "RainbowFlower_Puzzle.jpg"
 
 if color:
     color_volume = cv2.imread(file, cv2.IMREAD_COLOR)
@@ -136,7 +136,7 @@ class simulation_grid:
         #annealing constants:
         self.T0 = 10.
         self.Tf = 0.5
-        self.geometric_rate = 0.999
+        self.geometric_rate = 0.9999
     
     def total_energy(self) -> float:
         '''This should be much faster since I only use no explicit python loops instead of the 2 from the previous version
@@ -185,6 +185,7 @@ class simulation_grid:
     
     def pad(self, array:np.ndarray) -> np.ndarray: # this is important for vectorizing many of the operations in this class but sees no direct use outside of the initialization of the class
         '''Adds a padding of -1 along each exposed face of a 2D array'''
+        '''This is depreciated; we don't actually need this'''
         shape = array.shape
         # add top and bottom
         array = array.astype(np.int8) # we need to switch from uint8 since we are adding -1s.
@@ -201,19 +202,24 @@ class simulation_grid:
         The function takes in an Nx2 array of coordinates for N points. It returns a length N array
         We use the padded array here to allow indexing withough if statements. We remove the -1s by musltiplying them by False
         Note that the input grid_points should be for the unpadded array - we convert to the padded indicies herein, the input grid should also be unpadded'''
-        rows = grid_points[:,0]+1
-        columns = grid_points[:,1]+1
-        grid = self.pad(grid)
+        # ignore all the stuff about padding; we don't use padding anymore; instead I use logical masks
+        rows = grid_points[:,0]
+        columns = grid_points[:,1]
         # adding one account for the extra later of padding
 
         boundaries = self.check_boundary(grid_points) # Nx4 array
         current = grid[rows,columns] # array
 
         # I'm glad I watched that video on branchless code in C the other day, it is quite applicable and I probably would not have though to do this otherwise
-        top_energy = boundaries[:,0] * self.cached_energies[current,grid[rows-1,columns],0] # by multiplying by the boolean array we zero out the padding
-        left_energy = boundaries[:,1] * self.cached_energies[current,grid[rows,columns-1],1] 
-        bottom_energy = boundaries[:,2] * self.cached_energies[current,grid[rows+1,columns],2] 
-        right_energy = boundaries[:,3] * self.cached_energies[current,grid[rows,columns+1],3] 
+        top_energy = np.zeros_like(current,dtype=np.float32)
+        left_energy = np.copy(top_energy)
+        right_energy = np.copy(top_energy)
+        bottom_energy = np.copy(top_energy)
+
+        top_energy[boundaries[:,0]] = self.cached_energies[current[boundaries[:,0]],grid[rows[boundaries[:,0]]-1,columns[boundaries[:,0]]],0]
+        left_energy[boundaries[:,1]] = self.cached_energies[current[boundaries[:,1]],grid[rows[boundaries[:,1]],columns[boundaries[:,1]]-1],1] 
+        bottom_energy[boundaries[:,2]] = self.cached_energies[current[boundaries[:,2]],grid[rows[boundaries[:,2]]+1,columns[boundaries[:,2]]],2] 
+        right_energy[boundaries[:,3]] = self.cached_energies[current[boundaries[:,3]],grid[rows[boundaries[:,3]],columns[boundaries[:,3]]+1],3] 
 
         return top_energy + left_energy + bottom_energy + right_energy # total energy of local interactions
 
@@ -229,7 +235,7 @@ class simulation_grid:
         '''Ideally at some point we make each move dependant on the tempurature schedule; we prefer larger moves at low T so that we can cement absolute positions
         though we might have to implement the genetic algorithm again to get the absolute positions, the idea in that method was decent'''
 
-        if mode == 0 or mode == 3 or mode == 2: # swap two points with a preference for swapping points with high local energies
+        if mode == 0 or mode == 3: # swap two points with a preference for swapping points with high local energies
             ''' We are changing this from the previous version to bias choosing points with high local energies
              We can use self.cached_energies to quickly lookup the local energy of a tile in O(1) time - just indexing an array at most four times
              There is still some small chance to swap two random rows'''
@@ -292,6 +298,24 @@ class simulation_grid:
             ''' Here I try to move an entire block of tiles
             For simplicity we choose a rectangle shape and swap it with another rectangle with the same dimensions
             This allows us to keep pieces that are already matched together'''
+            # choose a tile to be the upper left of the rectangle:
+            sample_cols = randint(0,self.grid_shape[1],dtype=np.uint8)
+            sample_rows = randint(0,self.grid_shape[0],dtype=np.uint8)
+            samples = (sample_rows,sample_cols)
+            # choose the dimensions of the rectangle
+            width = randint(0,self.grid_shape[0]-samples[0]) # num rows -1
+            length = randint(0,self.grid_shape[1]-samples[1]) # num columns -1
+            # this should always be contained within the simulation grid
+
+            # choose the grid to swap with by choosing the upper left point
+            sample_cols = randint(0,self.grid_shape[1]-width,dtype=np.uint8)
+            sample_rows = randint(0,self.grid_shape[0]-length,dtype=np.uint8)
+            partner_location = (sample_rows,sample_cols)
+
+            # make the swap
+            new_grid = np.copy(self.simGrid)
+            new_grid[partner_location[0]:partner_location[0]+width+1,partner_location[1]:partner_location[1]+length+1] = self.simGrid[samples[0]:samples[0]+width+1,samples[1]:samples[1]+length+1]
+            new_grid[samples[0]:samples[0]+width+1,samples[1]:samples[1]+length+1] = self.simGrid[partner_location[0]:partner_location[0]+width+1,partner_location[1]:partner_location[1]+length+1]
 
         previous_contribution = self.energy # I do want to add these into the indevidual blocks; but for testing purposes and while the grids are small enough, I'll keep them here and recompute the entire grid energy
         new_contribution = self.total_energy_grid(new_grid)
@@ -322,9 +346,9 @@ class simulation_grid:
         i = 2
         while T > self.Tf: 
             self.markovStep(T)
-            print(f"Energy: {self.energy}, Temperature: {T}") # to track progress
-            #T = self.cooling_schedule_geometric(self.T0,self.geometric_rate,i) #update the tempurature
-            T = self.cooling_schedule_optimal(self.T0,i) #update the tempurature
+            #print(f"Energy: {self.energy}, Temperature: {T}") # to track progress
+            T = self.cooling_schedule_geometric(self.T0,self.geometric_rate,i) #update the tempurature
+            #T = self.cooling_schedule_optimal(self.T0,i) #update the tempurature
             i += 1
 
 
@@ -351,7 +375,10 @@ else:
         for j in range(simulation.grid_shape[1]):
             dict_index = simulation.simGrid[i,j]
             resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = simulation.tile_data[dict_index]["entire"]
-        cv2.imwrite(f"annealing-grayscale.jpg", resotred_page)
+    resotred_page = resotred_page.astype(np.uint8)
+    cv2.imwrite(f"annealing-grayscale.jpg", resotred_page)
+
+print(f"Final energy {simulation.energy}")
 
 plt.imshow(resotred_page)
 plt.show()

@@ -6,7 +6,7 @@ import cv2
 Setup
 '''
 
-gray_matrix = cv2.imread("Original_Squirrel.jpg", cv2.IMREAD_GRAYSCALE) # load in the file
+gray_matrix = cv2.imread("Original_RainbowFlower.jpg", cv2.IMREAD_COLOR) # load in the file
 
 '''Chop up the image'''
 
@@ -20,14 +20,14 @@ tiles = []
 for i in range(8):
     for j in range(8):
         tiles.append(
-            gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] # need this to reconstruct the array later
+            gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] # need this to reconstruct the array later
         )
 
 tiles = np.random.permutation(tiles)
 
 for i in range(8):
     for j in range(8):
-        gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = tiles[i*8 + j]
+        gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] = tiles[i*8 + j]
 
 
-cv2.imwrite(f"Squirrel_Puzzle.jpg",gray_matrix)
+cv2.imwrite(f"RainbowFlower_Puzzle.jpg",gray_matrix)
