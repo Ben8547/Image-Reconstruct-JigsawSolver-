@@ -15,7 +15,7 @@ The annealing algorithm has the capability to make 4 different moves. With 50% p
   <figcaption><em>Figure 2: Result of simulated annealing with single swaps and rolls. The final energy was 8763.</em></figcaption>
 </figure>
 
-The above images are representative of several trials performed with each method. Noteably, the variagation of movement options does tend to expidite solution discovery however simmulated annealing alone seems incapable of finding the true solution on its own though it does dramatically simplify the puzzle for the human observer as it is efficient at grouping pieces. To further increase the efficacy of the algorithm we turn to a genetic algorithm descirbed in https://doi.org/10.1109/CVPR.2013.231. While I do not implement their algorithm entirely, I use it's methods in combination with annealing to correct the abolsoute positions of tile.
+The above images are representative of several trials performed with each method. Noteably, the variagation of movement options does tend to expidite solution discovery however simmulated annealing alone seems incapable of finding the true solution on its own though it does dramatically simplify the puzzle for the human observer as it is efficient at grouping pieces. Single swaps alone only seem capable of putting together a single line of tiles while the addition of rolling operations allows for the conglomeration of these lines into larger structures. To further increase the efficacy of the algorithm we turn to a genetic algorithm descirbed in https://doi.org/10.1109/CVPR.2013.231. While I do not implement their algorithm entirely, I use it's methods in combination with annealing to correct the abolsoute positions of tile.
 
 Each file represents an implementation of a distinct method.
 
