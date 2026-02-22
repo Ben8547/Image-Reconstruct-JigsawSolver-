@@ -55,5 +55,7 @@ Another issue that I thing plagues this particular application and not the puzzl
 	Rewrote most functions in a vectorized version - this was difficult as I am not used to thinking in vectorization at all.
 
 2-21-2026 0:19 : I think there was an error in the computation of the original energy functions where the double loop meant that the left energies in the top row and top energies in the left column were not counted, I have fixed this in the vectorized version. - Looking back on the outputs there do seem to be fewer matches on the left and top which makes sense in retrospect.
+
+2-22-2026 13:39 : Things to work on today: 1) sort the repository into folders 2) implements the region switching in version3.py correctly 3) implement the genetic algorithm in version3.py since I still think that this is the best way to get the correct absolute positions and the annealing algorithm is currently in a place where we can get several tiles matched.
 	
 
