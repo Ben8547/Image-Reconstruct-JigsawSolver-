@@ -1,6 +1,15 @@
 My take on the jigsaw problem. **This is project is currently a work in progress**.
 
-[![alt text]([https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png](https://github.com/Ben8547/Image-Reconstruct-JigsawSolver-/blob/main/ReadMeImages/pure_annealed_squirrel_single_swaps_only.jpg) "Logo Title Text 1")](https://github.com/Ben8547/Image-Reconstruct-JigsawSolver-/blob/main/ReadMeImages/pure_annealed_squirrel_single_swaps_only.jpg)
+The annealing algorithm has the capability to make 4 different moves. With 50% probability, it will swap two tiles, with 25% probabilty it will perform a roll operation on the representation matrix and with 25% probability it will swap two rectangular regions. To determine the efficacy of each of these operations consider the following example outputs each generated from the same puzzle image.
+
+<figure>
+  <img src="https://raw.githubusercontent.com/Ben8547/Image-Reconstruct-JigsawSolver-/main/ReadMeImages/pure_annealed_squirrel_single_swaps_only.jpg" width="600"/>
+  <figcaption><em>Figure 1: Result of simulated annealing with single swaps only.</em></figcaption>
+</figure>
+<figure>
+  <img src="https://raw.githubusercontent.com/Ben8547/Image-Reconstruct-JigsawSolver-/main/ReadMeImages/pure_annealed_squirrel_with_rolls.jpg" width="600"/>
+  <figcaption><em>Figure 2: Result of simulated annealing with single swaps and rolls.</em></figcaption>
+</figure>
 
 Each file represents an implementation of a distinct method.
 
