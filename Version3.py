@@ -30,6 +30,10 @@ class simulation_grid:
         self.T0 = 10.
         self.Tf = 0.5
         self.geometric_rate = 0.9999
+
+    def best_buddies(self):
+        # identify the best-buddies - used for the genetric algorithm
+        return
     
     def total_energy(self) -> float:
         '''This should be much faster since I only use no explicit python loops instead of the 2 from the previous version
@@ -123,12 +127,27 @@ class simulation_grid:
         Mutates the self grid in accordance with the metropolis algorithm
         '''
 
-        mode = randint(0,4) # choose from several difference mutation options at random
+        mode = randint(0,3) # choose from several difference mutation options at random
 
         '''Ideally at some point we make each move dependant on the tempurature schedule; we prefer larger moves at low T so that we can cement absolute positions
         though we might have to implement the genetic algorithm again to get the absolute positions, the idea in that method was decent'''
 
-        if mode == 0 or mode == 3 or mode == 2: # swap two points with a preference for swapping points with high local energies
+        new_grid = self.pertub_grid(mode)
+
+        previous_contribution = self.energy # I do want to add these into the indevidual blocks; but for testing purposes and while the grids are small enough, I'll keep them here and recompute the entire grid energy
+        new_contribution = self.total_energy_grid(new_grid)
+
+        energy_change = new_contribution - previous_contribution
+
+        boltzmann_factor = np.exp(-energy_change/temperature)
+
+        if random() < boltzmann_factor: # always except whern previous >= new, sometimes accept an increase in the energy - dig out of local minima.
+            self.simGrid = new_grid
+            self.energy += energy_change
+
+    def pertub_grid(self,mode):
+        new_grid = np.copy(self.simGrid)
+        if mode == 0 or mode == 2: # swap two points with a preference for swapping points with high local energies
             ''' We are changing this from the previous version to bias choosing points with high local energies
              We can use self.cached_energies to quickly lookup the local energy of a tile in O(1) time - just indexing an array at most four times
              There is still some small chance to swap two random rows'''
@@ -153,7 +172,6 @@ class simulation_grid:
                 if partner_location[0] < 0 or partner_location[0] > self.grid_shape[0]-1 or partner_location[1] < 0 or partner_location[1] > self.grid_shape[1]-1:
                     Failed = True # Then the swap is not valid so we move to a random swap instead
                 else: # then we proceed with the swap
-                    new_grid = np.copy(self.simGrid)
                     new_grid[partner_location] = self.simGrid[worst_sample]
                     new_grid[worst_sample] = self.simGrid[partner_location]
             else: # with 5% chance swap two random pieces (more than 5% once you account for the failed swaps above)
@@ -163,17 +181,17 @@ class simulation_grid:
                 piece_rows = choice(list(range(self.grid_shape[0])),2,replace=False)
                 piece_cols = choice(list(range(self.grid_shape[1])),2,replace=False) # choosing the indicies for the points to swap
 
-                new_grid = np.copy(self.simGrid)
                 new_grid[piece_rows[0],piece_cols[0]] = self.simGrid[piece_rows[1],piece_cols[1]]
                 new_grid[piece_rows[1],piece_cols[1]] = self.simGrid[piece_rows[0],piece_cols[0]]
+
+            '''The way that we have restricted the rectangles should mean that they never overlap; I hope, I guess we'll see in testing for sure'''
 
             # compute the energy comtributions (only compute the local contributions)
 
             #previous_contribution = 
             #new_contribution = 
                 
-
-        elif mode == 1:
+        elif False: # This serves a redundant function to the subarray swapping below and seems to be less effective
             '''
             Same as in the previous version, use np.roll to permute columns or rows 
             The idea of this movement is that once we assemble chunck of related pieces, this function can move the chuncks into the correct absolute position.
@@ -187,38 +205,65 @@ class simulation_grid:
             #new_contribution = self.total_energy_grid(new_grid)
             # should just beable to recompute along the affected row or column
 
-        elif mode == 2:
+        elif mode == 1:
             ''' Here I try to move an entire block of tiles
             For simplicity we choose a rectangle shape and swap it with another rectangle with the same dimensions
             This allows us to keep pieces that are already matched together'''
-            # choose a tile to be the upper left of the rectangle:
-            sample_cols = randint(0,self.grid_shape[1],dtype=np.uint8)
-            sample_rows = randint(0,self.grid_shape[0],dtype=np.uint8)
-            samples = (sample_rows,sample_cols)
-            # choose the dimensions of the rectangle
-            width = randint(0,self.grid_shape[0]-samples[0]) # num rows -1
-            length = randint(0,self.grid_shape[1]-samples[1]) # num columns -1
-            # this should always be contained within the simulation grid
+            rows, cols = self.grid_shape
 
-            # choose the grid to swap with by choosing the upper left point
-            sample_cols = randint(0,self.grid_shape[1]-width,dtype=np.uint8)
-            sample_rows = randint(0,self.grid_shape[0]-length,dtype=np.uint8)
-            partner_location = (sample_rows,sample_cols)
+            while True:
+                accept = False
+                while True:
+                    r = randint(1,rows+1) # must have at least one row
+                    c = randint(1,cols+1)
+                    if (r != 1 and c != 1) and not (r >= rows//2 and c >= cols//2): # can't be 1x1 because that is taken care of by mode 0 and 1; also cant have both r and c too large or the below check will fail so we just nip that in the bud here
+                        break
+                x1, y1 = ( randint(0,self.grid_shape[0]-r+1), randint(0,self.grid_shape[1]-c+1) )# top-left point of the first subarray; we choose this given r and c so that the subarray is not outside of the grid
+                x2, y2 = ( randint(0,self.grid_shape[0]-r+1), randint(0,self.grid_shape[1]-c+1) ) # top-left point of the second subarray
+                if not (
+                    x1 + r <= x2 or x2 + r <= x1 or y1 + c <= y2 or y2 + c <= y1):
+                    continue  # resample if the rectangles overlap
+                break
+            new_grid[x2:x2+r,y2:y2+c] = self.simGrid[x1:x1+r,y1:y1+c]
+            new_grid[x1:x1+r,y1:y1+c] = self.simGrid[x2:x2+r,y2:y2+c]
+            # This (below) was my first attempt - I tired to cleverly choose the sub-arrays so that would not overlap - I would like to revisit this in the future but in the pursuit of functionality,
+            # for now I'm just going to sample equally sized rectangles until we find two that don't overlap
+            """# choose a tile to be the upper left of the rectangle:
+            samples = (0,0)
+            while samples == (0,0): # don't allow the top-left corner of the array since then we are unable to pick a complementary array
+                sample_cols = randint(0,self.grid_shape[1],dtype=np.uint8)
+                sample_rows = randint(0,self.grid_shape[0],dtype=np.uint8)
+                samples = (sample_rows,sample_cols) # this is the point that we will
+            d = choice([0,1]) # choose a direction; if top is chosen the partner subarray will be to the top of the subarray; similar for left; we need not consider bottom and right since we can make these swaps by choosing the would be partner tile as the starting tile as the the directions are reversed
+            if samples[0]==0: # then d can only be left; I would like to write these as branchless but I can't find a concise way at the moment
+                d = 1
+            elif samples[1]==0: #then d can only be top
+                d = 0
+            if d == 0: # d is "top"
+                '''the only condition on the column number is that we must be inside the grid so we need c < self.grid_shape[1] - samples[1]
+                The rows have two conditions, first r < self.grid_shape[1] - samples[1] so that the rectangle stays within the grid
+                but also that r < samples[1] so that the reciprical subarray has enough space to be fit above the present subarray'''
+                r = randint(1,np.min([self.grid_shape[0]-(samples[0]+1),samples[0]])) # number of rows for the rectangle to have; must have at least 1 row
+                c = randint(1,max(self.grid_shape[1]-samples[1],2)) # number of columns for the rectangle to have; must have at 
+                '''Now we need to pick the upper-left corner of the partner subarray; it cannot overlap with the original sub-array so there are restrictions on its location
+                for one, it cannot be placed within c columns of the right side of the array. As far as the rows are concerned the requirements are more delicate.
+                However we will simply make the assumption that the difference betweent the x-indicies of the top left corners must be at least r. This need not be the case if 
+                the sub array has few columns but for the sake of simplicity I do not consider that case.'''
+                y2 = randint(0,self.grid_shape[1]-c+1) # note that here we can pick the point (0,0)
+                x2 = randint(0,samples[0]-r+1)
+            else: # d is 'left'
+                '''Similar considerations to the rows apply'''
+                r = randint(1,max(2,self.grid_shape[0]-samples[0]))
+                c = randint(1,np.min([self.grid_shape[1]-samples[1],1+samples[1]]))
+                x2 = randint(0,self.grid_shape[0]-r+1)
+                y2 = randint(0,samples[1]-c+1)
 
             # make the swap
             new_grid = np.copy(self.simGrid)
-            ...
+            new_grid[x2:x2+r,y2:y2+c] = self.simGrid[samples[0]:samples[0]+r,samples[1]:samples[1]+c]
+            new_grid[samples[0]:samples[0]+r,samples[1]:samples[1]+c] = self.simGrid[x2:x2+r,y2:y2+c]"""
 
-        previous_contribution = self.energy # I do want to add these into the indevidual blocks; but for testing purposes and while the grids are small enough, I'll keep them here and recompute the entire grid energy
-        new_contribution = self.total_energy_grid(new_grid)
-
-        energy_change = new_contribution - previous_contribution
-
-        boltzmann_factor = np.exp(-energy_change/temperature)
-
-        if random() < boltzmann_factor: # always except whern previous >= new, sometimes accept an increase in the energy - dig out of local minima.
-            self.simGrid = new_grid
-            self.energy += energy_change
+        return new_grid # eventually, return the energy changes once that is set up too.
 
     def cooling_schedule_optimal(self,T_0, k):
         '''Note that to reach a final temperature of T_f we
@@ -256,7 +301,7 @@ if __name__ == "__main__": # so that we can just import the class if desired
 
     '''Load in the test file (permanent)'''
 
-    file = "Squirrel_Puzzle.jpg"
+    file = "Squirrel_Puzzle.jpg"#"Squirrel_Puzzle.jpg"
 
     if color:
         color_volume = cv2.imread("Inputs/"+file, cv2.IMREAD_COLOR)
