@@ -4,7 +4,7 @@ import cv2
 
 def compute_energy(file,color=True, energyFunction=lambda x,y: np.linalg.norm(x-y)/len(x)):
 
-    grid = np.arange(0,64,1,dtype=np.int8).reshape((8,8))
+    grid = np.arange(0,64,1,dtype=np.uint8).reshape((8,8))
 
     '''Load in the test file (permanent)'''
     if color:
@@ -35,10 +35,11 @@ def compute_energy(file,color=True, energyFunction=lambda x,y: np.linalg.norm(x-
         for i in range(8):
             for j in range(8):
                 tiles.append({
-                    "top": gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)],
-                    "bottom": gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
-                    "left": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j],
-                    "right": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1]
+                    0: gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)],
+                    2: gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
+                    1: gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j],
+                    3: gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1],
+                    "entire": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] # need this last one to reconstruct the array later
                 })
         del gray_matrix # no need to store a large matrix any longer than we need it. We only need the boarders anyway
     else:
@@ -51,13 +52,16 @@ def compute_energy(file,color=True, energyFunction=lambda x,y: np.linalg.norm(x-
         for i in range(8):
             for j in range(8):
                 tiles.append({
-                    0: color_volume[tile_length*i,tile_width*j:tile_width*(j+1),:],
-                    2: color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1),:],
-                    1: color_volume[tile_length*i:tile_length*(i+1),tile_width*j,:],
-                    3: color_volume[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1,:]
-                })
+                    0: color_volume[tile_length*i,tile_width*j:tile_width*(j+1),:], # top
+                    2: color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1),:], # bottom
+                    1: color_volume[tile_length*i:tile_length*(i+1),tile_width*j,:], # left
+                    3: color_volume[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1,:], # right
+                    "entire": color_volume[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] # need this last one to reconstruct the array later
+                }) # we use the wierd ordering so that we can use modular arithmatic to send top to bottom and left to right easily (and the reverse)
 
         del color_volume # no need to store a large matrix any longer than we need it. We only need the boarders anyway
+
+    grid = np.arange(0,64,1,dtype=np.uint8).reshape((8,8))
 
     cache_energies = np.zeros((64,64,4),dtype=float)
 
@@ -67,7 +71,7 @@ def compute_energy(file,color=True, energyFunction=lambda x,y: np.linalg.norm(x-
                 if i == j: # diagonal elements are set to infinite since they can never happen anyway
                     cache_energies[i,j,d_i] = np.inf
                 else:
-                    cache_energies[i,j,d_i] = compatability( tiles[i][d_i], tiles[j][(d_i + 2) % 4] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
+                    cache_energies[i,j,d_i] = energyFunction( tiles[i][d_i], tiles[j][(d_i + 2) % 4] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
 
     
     return total_energy(grid,cache_energies)
@@ -143,11 +147,17 @@ if __name__ == "__main__":
     ''' Compatability function'''
     from numpy.linalg import norm
     #compatability = lambda x,y: norm(x-y)/len(x)
-    compatability = lambda x,y: np.mean((x-y)**2)
+    compatability = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y))
 
     print(compute_energy(file = "Inputs/"+"Original_Squirrel.jpg", color=True, energyFunction = compatability))
     print(compute_energy(file = "Inputs/"+"Squirrel_Puzzle.jpg", color=True, energyFunction = compatability))
-    print(compute_energy("Inputs/"+"test.jpg",True,compatability))
-    print(compute_energy("Inputs/"+"Original_RainbowFlower.jpg",True,compatability))
-    print(compute_energy("ReadMeImages/"+"pure_annealed_squirrel_single_swaps_only.jpg",True,compatability))
+    print(compute_energy("ReadMeImages/"+"pure_annealed_squirrel_rolls_only.jpg",True,compatability))
     print(compute_energy("ReadMeImages/"+"pure_annealed_all_three.jpg",True,compatability))
+    print(compute_energy("ReadMeImages/"+"pure_annealed_squirrel_single_swaps_only.jpg",True,compatability))
+    print(compute_energy("ReadMeImages/"+"pure_annealed_0.999999.jpg",True,compatability))
+
+    print(compute_energy("ReadMeImages/"+"pure_annealed_squirrel_with_rolls.jpg",True,compatability))
+    print(compute_energy("ReadMeImages/"+"pure_annealed_subarray_and_swaps.jpg",True,compatability))
+    print(compute_energy("ReadMeImages/"+"pure_annealed_subarray_only.jpg",True,compatability))
+
+    print(compute_energy(file = "Outputs/"+"annealing-color.jpg", color=True, energyFunction = compatability))

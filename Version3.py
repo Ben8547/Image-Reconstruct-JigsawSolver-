@@ -29,7 +29,7 @@ class simulation_grid:
         #annealing constants:
         self.T0 = 10.
         self.Tf = 0.5
-        self.geometric_rate = 0.9999999#0.9999
+        self.geometric_rate = 0.9999#0.9999999#0.9999
 
     def best_buddies(self):
         # identify the best-buddies - used for the genetric algorithm
@@ -132,20 +132,17 @@ class simulation_grid:
         '''Ideally at some point we make each move dependant on the tempurature schedule; we prefer larger moves at low T so that we can cement absolute positions
         though we might have to implement the genetic algorithm again to get the absolute positions, the idea in that method was decent'''
 
-        new_grid = self.pertub_grid(mode)
-
-        previous_contribution = self.energy # I do want to add these into the indevidual blocks; but for testing purposes and while the grids are small enough, I'll keep them here and recompute the entire grid energy
-        new_contribution = self.total_energy_grid(new_grid)
+        new_grid, previous_contribution,new_contribution = self.perturb_grid(mode)
 
         energy_change = new_contribution - previous_contribution
 
-        boltzmann_factor = np.exp(-energy_change/temperature)
+        boltzmann_factor = np.exp(min(-energy_change,1.)/temperature) # min() prevent overlow in exp()
 
         if random() < boltzmann_factor: # always except whern previous >= new, sometimes accept an increase in the energy - dig out of local minima.
             self.simGrid = new_grid
             self.energy += energy_change
 
-    def pertub_grid(self,mode):
+    def perturb_grid(self,mode):
         new_grid = np.copy(self.simGrid)
         if mode == 0 or mode == 2: # swap two points with a preference for swapping points with high local energies
             ''' We are changing this from the previous version to bias choosing points with high local energies
@@ -172,24 +169,52 @@ class simulation_grid:
                 if partner_location[0] < 0 or partner_location[0] > self.grid_shape[0]-1 or partner_location[1] < 0 or partner_location[1] > self.grid_shape[1]-1:
                     Failed = True # Then the swap is not valid so we move to a random swap instead
                 else: # then we proceed with the swap
-                    new_grid[partner_location] = self.simGrid[worst_sample]
-                    new_grid[worst_sample] = self.simGrid[partner_location]
+                    worst = self.simGrid[worst_sample]
+                    partner = self.simGrid[partner_location]
+                    if worst == partner: # this happens with suprising frequency, it would nice to figure out why
+                        Failed = True
+                    else:
+                        new_grid[partner_location] = worst
+                        new_grid[worst_sample] = partner
+
             else: # with 5% chance swap two random pieces (more than 5% once you account for the failed swaps above)
                 Failed = True
 
             if Failed: # make a random swap
-                piece_rows = choice(list(range(self.grid_shape[0])),2,replace=False)
-                piece_cols = choice(list(range(self.grid_shape[1])),2,replace=False) # choosing the indicies for the points to swap
+                while True:
+                    piece_rows = choice(list(range(self.grid_shape[0])),2,replace=True)
+                    piece_cols = choice(list(range(self.grid_shape[1])),2,replace=True) # choosing the indicies for the points to swap
+                    if piece_rows[0] != piece_rows[1] or piece_cols[0] != piece_cols[1]:
+                        break # get out of loop when the points are unique
 
-                new_grid[piece_rows[0],piece_cols[0]] = self.simGrid[piece_rows[1],piece_cols[1]]
-                new_grid[piece_rows[1],piece_cols[1]] = self.simGrid[piece_rows[0],piece_cols[0]]
+                worst = self.simGrid[piece_rows[0],piece_cols[0]]
+                partner = self.simGrid[piece_rows[1],piece_cols[1]] # these names, unlike above, don't mean anything. Instead they are simply used for consistancy with the energy computations below
 
-            '''The way that we have restricted the rectangles should mean that they never overlap; I hope, I guess we'll see in testing for sure'''
+                new_grid[piece_rows[0],piece_cols[0]] = partner
+                new_grid[piece_rows[1],piece_cols[1]] = worst
+
+                
+                partner_location = (piece_rows[1],piece_cols[1])
+                worst_sample = (piece_rows[0],piece_cols[0])
 
             # compute the energy comtributions (only compute the local contributions)
+            # we do this by recomputing all of the interactions of the swapped points and then taking the difference, if the two random points are adjacent, care must be taken not to double count the side on which the interact
 
-            #previous_contribution = 
-            #new_contribution = 
+            '''previous_contribution = self.local_energy(self.simGrid,np.array([[worst_sample[0],worst_sample[1]]])) + self.local_energy(self.simGrid,np.array([[partner_location[0],partner_location[1]]]))
+            new_contribution = self.local_energy(new_grid,np.array([[worst_sample[0],worst_sample[1]]])) + self.local_energy(new_grid,np.array([[partner_location[0],partner_location[1]]]))
+            previous_contribution -= (self.cached_energies[partner,worst,0] * ( worst == self.simGrid[partner_location[0]-(1 * (partner_location[0] != 0) ),partner_location[1]] )
+                                    + self.cached_energies[partner,worst,2] * ( worst == self.simGrid[partner_location[0]+(1 * (partner_location[0] != self.grid_shape[0]-1) ),partner_location[1]] )
+                                    + self.cached_energies[partner,worst,1] * (worst == self.simGrid[partner_location[0],partner_location[1]-(1 * (partner_location[1] != 0))] )
+                                    + self.cached_energies[partner,worst,3] * (worst == self.simGrid[partner_location[0],partner_location[1]+(1 * (partner_location[1] != self.grid_shape[1]-1))] )
+                                    ) # remove double counts if they are neighbors
+            new_contribution -=  (self.cached_energies[partner,worst,0] * ( worst == new_grid[worst_sample[0]-(1 * ( worst_sample[0] != 0 )),worst_sample[1]] )
+                                    + self.cached_energies[partner,worst,2] * ( worst == new_grid[worst_sample[0]+(1 * (worst_sample[0] != self.grid_shape[0]-1)),worst_sample[1]] )
+                                    + self.cached_energies[partner,worst,1] * (worst == new_grid[worst_sample[0],worst_sample[1]-(1 * (worst_sample[1] != 0))] )
+                                    + self.cached_energies[partner,worst,3] * (worst == new_grid[worst_sample[0],worst_sample[1]+(1 * (worst_sample[1] != self.grid_shape[1]-1))] )
+                                    )''' # this is about 2x slower than just recomputing the grid energies - somehow
+            previous_contribution = self.energy
+            new_contribution = self.total_energy_grid(new_grid)
+            
                 
         elif False: # This serves a redundant function to the subarray swapping below and seems to be less effective
             '''
@@ -225,6 +250,11 @@ class simulation_grid:
                 break
             new_grid[x2:x2+r,y2:y2+c] = self.simGrid[x1:x1+r,y1:y1+c]
             new_grid[x1:x1+r,y1:y1+c] = self.simGrid[x2:x2+r,y2:y2+c]
+
+            # now we compute the local change in energy; this is a bit more intensive than the single swaps above; for now I'll just recompute the enture grid energy
+            previous_contribution = self.energy
+            new_contribution = self.total_energy_grid(new_grid)
+
             # This (below) was my first attempt - I tired to cleverly choose the sub-arrays so that would not overlap - I would like to revisit this in the future but in the pursuit of functionality,
             # for now I'm just going to sample equally sized rectangles until we find two that don't overlap
             """# choose a tile to be the upper left of the rectangle:
@@ -262,7 +292,7 @@ class simulation_grid:
             new_grid[x2:x2+r,y2:y2+c] = self.simGrid[samples[0]:samples[0]+r,samples[1]:samples[1]+c]
             new_grid[samples[0]:samples[0]+r,samples[1]:samples[1]+c] = self.simGrid[x2:x2+r,y2:y2+c]"""
 
-        return new_grid # eventually, return the energy changes once that is set up too.
+        return new_grid, previous_contribution, new_contribution # eventually, return the energy changes once that is set up too.
 
     def cooling_schedule_optimal(self,T_0, k):
         '''Note that to reach a final temperature of T_f we
@@ -301,16 +331,17 @@ if __name__ == "__main__": # so that we can just import the class if desired
 
     '''Load in the test file (permanent)'''
 
-    file = "Squirrel_Puzzle.jpg"#"Squirrel_Puzzle.jpg"
+    file = "Inputs/"+"Squirrel_Puzzle.jpg"
 
     if color:
-        color_volume = cv2.imread("Inputs/"+file, cv2.IMREAD_COLOR)
+        color_volume = cv2.imread(file, cv2.IMREAD_COLOR)#.astype(np.int16) # we need these to be int16 so that there is not wrapping of the unsinged integers when we compute energies. This should allow proper energy computation; commented out the int16 part because I ordered the terms in the mean
+        #print(type(color_volume[0,0,0])) # it is indeed stored as uint8
         '''
         This outputs a 3 dimensional array: (hight, width, 3)
         We will need to store data differently taking this into account.
         '''
     else:
-        gray_matrix = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
+        gray_matrix = cv2.imread(file, cv2.IMREAD_GRAYSCALE)#.astype(np.int16)
         #print(gray_matrix)
 
     '''Chop up the image'''
@@ -327,11 +358,11 @@ if __name__ == "__main__": # so that we can just import the class if desired
         for i in range(8):
             for j in range(8):
                 tiles.append({
-                    0: gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)],
+                    0: gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)], 
                     2: gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
                     1: gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j],
                     3: gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1],
-                    "entire": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] # need this last one to reconstruct the array later
+                    "entire": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)]# need this last one to reconstruct the array later
                 })
         del gray_matrix # no need to store a large matrix any longer than we need it. We only need the boarders anyway
     else:
@@ -360,7 +391,7 @@ if __name__ == "__main__": # so that we can just import the class if desired
 
     ''' Energy Function '''
 
-    compatability = lambda x,y: np.mean((x-y)**2) # energy function
+    compatability = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y)) # energy function
 
     '''
     Cache every possible interaction energy
@@ -384,11 +415,22 @@ if __name__ == "__main__": # so that we can just import the class if desired
 
     for i in range(64):
         for j in range(64):
-            for d_i in range(4):
+            for d_i in range(2):
                 if i == j: # diagonal elements are set to infinite since they can never happen anyway
                     cache_energies[i,j,d_i] = np.inf
                 else:
                     cache_energies[i,j,d_i] = compatability( tiles[i][d_i], tiles[j][(d_i + 2) % 4] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
+
+    #Since we only did top and left, we can recover bottom and right since the matrix has the following property cache[i,j,0] = cache[j,i,2] and cache[i,j,1] = cache[j,i,3]
+    # by only computing half of the directions in the loop we should halve the compute time of the loop
+
+    X, Y = np.meshgrid(np.arange(0,64,1,dtype=np.uint8),np.arange(0,64,1,dtype=np.uint8))
+
+    cache_energies[X,Y,2] = cache_energies[Y,X,0]
+
+    cache_energies[X,Y,3] = cache_energies[Y,X,1]
+    
+    #I'm fairly happy with my idea to use meshgrid to do this.
 
     # this is actually suprisingly quick to compute though probably won't scale well for large puzzles. Luckily we only care about 64x64 right now.
     # in the current case it might actually take longer to open a read a file than just recompute all of the energies
