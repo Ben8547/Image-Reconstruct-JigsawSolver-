@@ -7,15 +7,28 @@ The annealing algorithm has the capability to make 4 different moves. With 50% p
   <figcaption><em>Figure 1: Result of simulated annealing with single swaps only. The final energy was 9792.</em></figcaption>
 </figure>
 <figure>
+  <img src="https://github.com/Ben8547/Image-Reconstruct-JigsawSolver-/blob/main/ReadMeImages/pure_annealed_subarray_only.jpg" width="300"/>
+  <figcaption><em>Figure 2: Result of simulated annealing with rolls only. The final energy was 11447.</em></figcaption>
+</figure>
+<figure>
   <img src="https://github.com/Ben8547/Image-Reconstruct-JigsawSolver-/blob/main/ReadMeImages/pure_annealed_squirrel_rolls_only.jpg" width="300"/>
-  <figcaption><em>Figure 1: Result of simulated annealing with rolls only. The final energy was 11447.</em></figcaption>
+  <figcaption><em>Figure 3: Result of simulated annealing with subarray swaps only. The final energy was 11502.</em></figcaption>
 </figure>
 <figure>
   <img src="https://raw.githubusercontent.com/Ben8547/Image-Reconstruct-JigsawSolver-/main/ReadMeImages/pure_annealed_squirrel_with_rolls.jpg" width="300"/>
-  <figcaption><em>Figure 2: Result of simulated annealing with single swaps and rolls. The final energy was 8763.</em></figcaption>
+  <figcaption><em>Figure 4: Result of simulated annealing with single swaps and rolls. The final energy was 8763.</em></figcaption>
+</figure>
+<figure>
+  <img src="https://github.com/Ben8547/Image-Reconstruct-JigsawSolver-/blob/main/ReadMeImages/pure_annealed_subarray_and_swaps.jpg" width="300"/>
+  <figcaption><em>Figure 5: Result of simulated annealing with single swaps and subarray swaps The final energy was 8883.</em></figcaption>
+</figure>
+<figure>
+  <img src="https://github.com/Ben8547/Image-Reconstruct-JigsawSolver-/blob/main/ReadMeImages/pure_annealed_all_three.jpg" width="300"/>
+  <figcaption><em>Figure 6: Result of simulated annealing with all three movement options. The final energy was 8907.</em></figcaption>
 </figure>
 
-The above images are representative of several trials performed with each method. Noteably, the variagation of movement options does tend to expidite solution discovery however simmulated annealing alone seems incapable of finding the true solution on its own though it does dramatically simplify the puzzle for the human observer as it is efficient at grouping pieces. Single swaps alone only seem capable of putting together a single line of tiles while the addition of rolling operations allows for the conglomeration of these lines into larger structures. To further increase the efficacy of the algorithm we turn to a genetic algorithm descirbed in https://doi.org/10.1109/CVPR.2013.231. While I do not implement their algorithm entirely, I use it's methods in combination with annealing to correct the abolsoute positions of tile.
+
+The above images are representative of several trials performed with each method. Noteably, the variagation of movement options does tend to expidite solution discovery however simmulated annealing alone seems incapable of finding the true solution on its own though it does dramatically simplify the puzzle for the human observer as it is efficient at grouping pieces. Single swaps alone only seem capable of putting together a single line of tiles while the addition of rolling operations allows for the conglomeration of these lines into larger structures. The subarray swaps and the rolls seemed to fill similar rolls in the process and I deemed them redundant. Since the subarray swaps seemed to slightly outperform rolls in accuracy I have opted to keep only subarray swaps. To further increase the efficacy of the algorithm we turn to a genetic algorithm descirbed in https://doi.org/10.1109/CVPR.2013.231. While I do not implement their algorithm entirely, I use it's methods in combination with annealing to correct the abolsoute positions of tile.
 
 Each file represents an implementation of a distinct method.
 
