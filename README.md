@@ -30,6 +30,13 @@ The annealing algorithm has the capability to make 4 different moves. With 50% p
 
 The above images are representative of several trials performed with each method. Noteably, the variagation of movement options does tend to expidite solution discovery however simmulated annealing alone seems incapable of finding the true solution on its own though it does dramatically simplify the puzzle for the human observer as it is efficient at grouping pieces. Single swaps alone only seem capable of putting together a single line of tiles while the addition of rolling operations allows for the conglomeration of these lines into larger structures. The subarray swaps and the rolls seemed to fill similar rolls in the process and I deemed them redundant. Since the subarray swaps seemed to slightly outperform rolls in accuracy I have opted to keep only subarray swaps. To further increase the efficacy of the algorithm we turn to a genetic algorithm descirbed in https://doi.org/10.1109/CVPR.2013.231. While I do not implement their algorithm entirely, I use it's methods in combination with annealing to correct the abolsoute positions of tile.
 
+Running the pure anealing algorithm with single and subarray swaps at 0.67 and 0.33 probability respectively with a geometric decay rate of 0.999999 and $$T_0 = 10$$ and $$T_f = 0.5$$ yield an approzimate 3 hour run time and the following representative image which shows signifigant progress towards being solved.
+
+<figure>
+  <img src="https://github.com/Ben8547/Image-Reconstruct-JigsawSolver-/blob/main/ReadMeImages/pure_annealed_0.999999.jpg" width="300"/>
+  <figcaption><em>Figure 6: Result of simulated annealing with very slow geometric scaling. The final energy was 7948.</em></figcaption>
+</figure>
+
 Each file represents an implementation of a distinct method.
 
 * Make_Puzzle.py transforms and image into a scrambled puzzle.
