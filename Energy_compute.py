@@ -67,12 +67,20 @@ def compute_energy(file,color=True, energyFunction=lambda x,y: np.linalg.norm(x-
 
     for i in range(64):
         for j in range(64):
-            for d_i in range(4):
+            for d_i in range(2):
                 if i == j: # diagonal elements are set to infinite since they can never happen anyway
                     cache_energies[i,j,d_i] = np.inf
                 else:
-                    cache_energies[i,j,d_i] = energyFunction( tiles[i][d_i], tiles[j][(d_i + 2) % 4] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
+                    cache_energies[i,j,d_i] = compatability( tiles[i][d_i], tiles[j][(d_i + 2) % 4] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
 
+    #Since we only did top and left, we can recover bottom and right since the matrix has the following property cache[i,j,0] = cache[j,i,2] and cache[i,j,1] = cache[j,i,3]
+    # by only computing half of the directions in the loop we should halve the compute time of the loop
+
+    X, Y = np.meshgrid(np.arange(0,64,1,dtype=np.uint8),np.arange(0,64,1,dtype=np.uint8))
+
+    cache_energies[X,Y,2] = cache_energies[Y,X,0]
+
+    cache_energies[X,Y,3] = cache_energies[Y,X,1]
     
     return total_energy(grid,cache_energies)
 

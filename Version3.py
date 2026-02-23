@@ -325,13 +325,13 @@ if __name__ == "__main__": # so that we can just import the class if desired
     Setup
     '''
 
-    '''Deicde color or non-color'''
+    '''Decide color or non-color'''
 
     color = True
 
     '''Load in the test file (permanent)'''
 
-    file = "Inputs/"+"Squirrel_Puzzle.jpg"
+    file = "Inputs/"+"RainbowFlower_Puzzle.jpg"
 
     if color:
         color_volume = cv2.imread(file, cv2.IMREAD_COLOR)#.astype(np.int16) # we need these to be int16 so that there is not wrapping of the unsinged integers when we compute energies. This should allow proper energy computation; commented out the int16 part because I ordered the terms in the mean
