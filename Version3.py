@@ -29,7 +29,7 @@ class simulation_grid:
         #annealing constants:
         self.T0 = 10.
         self.Tf = 0.5
-        self.geometric_rate = 0.9999
+        self.geometric_rate = 0.9999999#0.9999
 
     def best_buddies(self):
         # identify the best-buddies - used for the genetric algorithm
@@ -283,8 +283,9 @@ class simulation_grid:
         while T > self.Tf: 
             self.markovStep(T)
             #print(f"Energy: {self.energy}, Temperature: {T}") # to track progress
-            #T = self.cooling_schedule_geometric(self.T0,self.geometric_rate,i) #update the tempurature
-            T = self.cooling_schedule_optimal(self.T0,i) #update the tempurature
+            T = self.cooling_schedule_geometric(self.T0,self.geometric_rate,i) #update the tempurature
+            #T = self.cooling_schedule_optimal(self.T0,i) #update the tempurature
+            '''if it takes 4 seconds to vomplete the geometric regieme it will take 1e3/36 hours to complete the logarithmic regieme accourding to my back of the envalope calculatiosn.'''
             i += 1
 
 
