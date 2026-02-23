@@ -150,4 +150,4 @@ if __name__ == "__main__":
     print(compute_energy("Inputs/"+"test.jpg",True,compatability))
     print(compute_energy("Inputs/"+"Original_RainbowFlower.jpg",True,compatability))
     print(compute_energy("ReadMeImages/"+"pure_annealed_squirrel_single_swaps_only.jpg",True,compatability))
-    print(compute_energy("ReadMeImages/"+"pure_annealed_squirrel_with_rolls.jpg",True,compatability))
+    print(compute_energy("ReadMeImages/"+"pure_annealed_all_three.jpg",True,compatability))

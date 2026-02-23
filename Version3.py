@@ -212,7 +212,6 @@ class simulation_grid:
             rows, cols = self.grid_shape
 
             while True:
-                accept = False
                 while True:
                     r = randint(1,rows+1) # must have at least one row
                     c = randint(1,cols+1)
@@ -284,8 +283,8 @@ class simulation_grid:
         while T > self.Tf: 
             self.markovStep(T)
             #print(f"Energy: {self.energy}, Temperature: {T}") # to track progress
-            T = self.cooling_schedule_geometric(self.T0,self.geometric_rate,i) #update the tempurature
-            #T = self.cooling_schedule_optimal(self.T0,i) #update the tempurature
+            #T = self.cooling_schedule_geometric(self.T0,self.geometric_rate,i) #update the tempurature
+            T = self.cooling_schedule_optimal(self.T0,i) #update the tempurature
             i += 1
 
 

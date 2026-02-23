@@ -58,4 +58,5 @@ Another issue that I thing plagues this particular application and not the puzzl
 
 2-22-2026 13:39 : Things to work on today: 1) sort the repository into folders 2) implements the region switching in version3.py correctly 3) implement the genetic algorithm in version3.py since I still think that this is the best way to get the correct absolute positions and the annealing algorithm is currently in a place where we can get several tiles matched.
 	
+2-23-2026 1:41 : Signing off for the night. I was able to finish (1) and (2) of the above. Still need to reimplement the genetic algorithm though that will take a lot of work and I may not have time to finish this week. I want to run a logarithmic cooling run while I sleep just to see if it's any better - will update the log in the morning with results. Also, should look into Gaussian processes and optimization when I get the chance.
 
