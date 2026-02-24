@@ -19,7 +19,7 @@ d) Create a more precise temperature schedule since the current geometric coolin
 '''
 
 class simulation_grid:
-    def __init__(self, grid, dict_list, cached_energies):
+    def __init__(self, grid, dict_list, cached_energies, T0=10., Tf=0.5, geometric_decay_rate=0.9999):
         self.simGrid = grid
         self.tile_data = dict_list
         self.grid_shape = self.simGrid.shape # note that this is the shape of the non-padded
@@ -27,9 +27,9 @@ class simulation_grid:
         self.energy = self.total_energy() # set the total energy on creating the class
         # for all intents and purposes recall that 0 = top, 1 = left, 2 = bottom, 3 = right which is quite a different ordering than the previous verison.
         #annealing constants:
-        self.T0 = 10.
-        self.Tf = 0.5
-        self.geometric_rate = 0.9999#0.9999999#0.9999
+        self.T0 = T0
+        self.Tf = Tf
+        self.geometric_rate = geometric_decay_rate #0.9999999#0.9999
 
     def best_buddies(self):
         # identify the best-buddies - used for the genetric algorithm
@@ -331,7 +331,7 @@ if __name__ == "__main__": # so that we can just import the class if desired
 
     '''Load in the test file (permanent)'''
 
-    file = "Inputs/"+"RainbowFlower_Puzzle.jpg"
+    file = "Inputs/"+"test.jpg"
 
     if color:
         color_volume = cv2.imread(file, cv2.IMREAD_COLOR)#.astype(np.int16) # we need these to be int16 so that there is not wrapping of the unsinged integers when we compute energies. This should allow proper energy computation; commented out the int16 part because I ordered the terms in the mean

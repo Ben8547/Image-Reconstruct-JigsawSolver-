@@ -2,22 +2,21 @@ import numpy as np
 import cv2
 
 
-def compute_energy(file,color=True, energyFunction=lambda x,y: np.linalg.norm(x-y)/len(x)):
+def compute_energy(file,color=True, energyFunction=lambda x,y: lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y))):
 
     grid = np.arange(0,64,1,dtype=np.uint8).reshape((8,8))
 
     '''Load in the test file (permanent)'''
     if color:
         color_volume = cv2.imread(file, cv2.IMREAD_COLOR)
-        #print(color_volume)
-        #print(color_volume.shape)
+
         '''
         This outputs a 3 dimensional array: (hight, width, 3)
         We will need to store data differently taking this into account.
         '''
     else:
         gray_matrix = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
-        #print(gray_matrix)
+
 
     '''
     Now we disect each tile and save it's boarder vectors in a list of dictionaries.
@@ -71,7 +70,7 @@ def compute_energy(file,color=True, energyFunction=lambda x,y: np.linalg.norm(x-
                 if i == j: # diagonal elements are set to infinite since they can never happen anyway
                     cache_energies[i,j,d_i] = np.inf
                 else:
-                    cache_energies[i,j,d_i] = compatability( tiles[i][d_i], tiles[j][(d_i + 2) % 4] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
+                    cache_energies[i,j,d_i] = energyFunction( tiles[i][d_i], tiles[j][(d_i + 2) % 4] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
 
     #Since we only did top and left, we can recover bottom and right since the matrix has the following property cache[i,j,0] = cache[j,i,2] and cache[i,j,1] = cache[j,i,3]
     # by only computing half of the directions in the loop we should halve the compute time of the loop
@@ -85,7 +84,7 @@ def compute_energy(file,color=True, energyFunction=lambda x,y: np.linalg.norm(x-
     return total_energy(grid,cache_energies)
 
 
-def total_energy(simGrid, cache_energies):
+def total_energy(simGrid, cache_energies) -> float:
 
     # only rows 1..N-1 AND columns 1..N-1
     top_current = simGrid[1:, :]
@@ -98,13 +97,6 @@ def total_energy(simGrid, cache_energies):
     energy_left = np.sum(cache_energies[left_current, left_neighbors, 1])
 
     return energy_top + energy_left
-    """energy = 0.
-    for i in range(1,simGrid.shape[0]): # skip firt row
-        for j in range(1,simGrid.shape[1]): # skip first column
-            # we don't want to double count interactions so we first only compute the energies to the left and obove each point (skipping the topmost and leftmost row/column)
-            # then since the edges do not interact we can stop here since each interacting edge has been counted exactly once.
-            energy += interaction_energy(simGrid,tile_data,(i,j),energyFunction)"""
-    return energy_left+energy_top
 
 '''def total_energy(simGrid, cache):
     energy = 0.0
@@ -158,14 +150,7 @@ if __name__ == "__main__":
     compatability = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y))
 
     print(compute_energy(file = "Inputs/"+"Original_Squirrel.jpg", color=True, energyFunction = compatability))
+    print(compute_energy(file = "Inputs/"+"Original_RainbowFlower.jpg", color=True, energyFunction = compatability))
     print(compute_energy(file = "Inputs/"+"Squirrel_Puzzle.jpg", color=True, energyFunction = compatability))
     print(compute_energy("ReadMeImages/"+"pure_annealed_squirrel_rolls_only.jpg",True,compatability))
-    print(compute_energy("ReadMeImages/"+"pure_annealed_all_three.jpg",True,compatability))
-    print(compute_energy("ReadMeImages/"+"pure_annealed_squirrel_single_swaps_only.jpg",True,compatability))
-    print(compute_energy("ReadMeImages/"+"pure_annealed_0.999999.jpg",True,compatability))
-
-    print(compute_energy("ReadMeImages/"+"pure_annealed_squirrel_with_rolls.jpg",True,compatability))
-    print(compute_energy("ReadMeImages/"+"pure_annealed_subarray_and_swaps.jpg",True,compatability))
-    print(compute_energy("ReadMeImages/"+"pure_annealed_subarray_only.jpg",True,compatability))
-
     print(compute_energy(file = "Outputs/"+"annealing-color.jpg", color=True, energyFunction = compatability))
