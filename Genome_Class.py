@@ -93,7 +93,106 @@ class Genome:
         grid = -np.ones((1,1),dtype=int) # begin with an empty 1x1 array
         '''seed the child with the first tile.'''
         parent_adjacencies_lookup, parent_adjacencies = self.search_parents_for_same_adjacencies(parent1, parent2)
+        if parent_adjacencies: # empty lists give false; lists with elements yield true
+                grid[0,0] = np.random.choice(parent_adjacencies)
+        else: # no adjacencies
+            grid[0,0] = np.random.choice(parent1.ravel())
+
+        self.used_tiles = [None, grid[0,0]] # add the used tile to the list - this cannot be added again
+        self.unused_tiles = np.array([i for i in range(self.grid_shape[0]*self.grid_shape[1])],dtype=object) # this one specifically is an array because we need to use a mask on it later
+        self.unused_tiles[grid[0,0]] = None
+        self.num_used_tiles = 1
+
+        while self.num_used_tiles < len(parent1.ravel()):
+            # start by searching for an element in the child in parent_adjacencies
+            current_shape = grid.shape
+            place_random = False
+            if self.parent_adjacencies: # check that there even are duplicate adjacencies
+                #print(self.parent_adjacencies) # debug
+                dual_adjacent_in_child = []
+                for i, element in enumerate(self.grid.ravel()):
+                    # i is the index of the raveled array; element is the integer representing the tile
+                    m = i // current_shape[1] # row index of element
+                    n = i % current_shape[1] # column index of element
+                    if element in self.parent_adjacencies:
+                        open = self.check_open_side(m,n, current_shape)
+                        repetative_neighbors_dict = self.parent_adjacencies_lookup[element] # should return a dictionary with the parental repeated neighbors on each side listed
+                        if any( ( (repetative_neighbors_dict[d] not in self.used_tiles) and ( open[d] != False ) ) for d in outerself.directions ): # check that the intended neighbor has not already been place in the child; recall that None is in the list of used tiles so we get True if there is no ajacency
+                            dual_adjacent_in_child.append(i) # this will be a list of all of the elements in the child that have repeated adjacencies in the parents that also have open sides in the grid
+                        else: # then the partner of this tile is used already - there is no reason to consider either or them in future loops
+                            self.parent_adjacencies.remove(element) # no reason to consider this element again on future loops
+                if dual_adjacent_in_child: # check the list is non-empty; i.e. were any of the neighbors not already chosen?
+                    # choose a tile which a neighbour
+                    tile = np.random.choice(dual_adjacent_in_child) # tile index in the flat array
+                    m = tile // current_shape[1] # row of tile
+                    n = tile % current_shape[1] # column of tile
+                    tile = self.grid[m,n]
+                    # now find its common neighbours in the parents, and choose one at random
+                    repetative_neighbors_dict = self.parent_adjacencies_lookup[tile]
+                    valid_directions = []
+                    for direction in ['top','bottom','left','right']:
+                        if (repetative_neighbors_dict[direction] != None) and self.check_open_side(m,n,current_shape)[direction]: # requires the element to be open in that direction and for it to actully have a valid neighbor
+                            valid_directions.append(direction)
+                    direction = np.random.choice(valid_directions) # choose a random valid direction
+
+                    if np.random.random() < self.mutation_probability: # random mutation
+                        placement = np.random.choice(self.unused_tiles[self.unused_tiles != None])
+                    else:
+                        placement = repetative_neighbors_dict[direction]
         return
+    
+    def check_open_side(self, grid, row:int, col:int, shape:tuple) -> tuple: # check this function seperately, it works perfectly (see ./python_tests/).
+            '''special cases'''
+            if shape == (1,1): # there is only a single element so all sides are open
+                return {'top':np.True_, 'bottom':np.True_, 'left':np.True_, 'right':np.True_} # may as well use np.True_ to be consistant with the rest of the entries
+            if shape[0] == 1: # the top and bottom must be open since there is only a single row
+                '''left/right'''
+                if (col == 0): # if on left boundary
+                    left_open = not (shape[1] == self.grid_shape[1]) # if we are the maximal dimension, then top is not open
+                    right_open = (grid[row,col+1] == -1)
+                elif (col == shape[1]-1): # on right boundary
+                    right_open = not (shape[1] == self.grid_shape[1])
+                    left_open = (grid[row,col-1] == -1)
+                else: # then we are in one of the middle rows
+                    left_open = (grid[row,col-1] == -1)
+                    right_open = (grid[row,col+1] == -1)
+                return {'top':np.True_, 'bottom':np.True_, 'left':left_open, 'right':right_open}
+            if shape[1] == 1: # left and right must be open
+                '''top/bottom'''
+                if (row == 0): # if on top boundary
+                    top_open = not (shape[0] == self.grid_shape[0]) # if we are the maximal dimension, then top is not open
+                    bottom_open = (grid[row+1,col] == -1)
+                elif (row == shape[0]-1): # on bottom boundary
+                    bottom_open = not (shape[0] == self.grid_shape[0])
+                    top_open = (grid[row-1,col] == -1)
+                else: # then we are in one of the middle rows
+                    top_open = (grid[row-1,col] == -1)
+                    bottom_open = (grid[row+1,col] == -1)
+                return {'top':top_open, 'bottom':bottom_open, 'left':np.True_, 'right':np.True_}
+            
+            '''top/bottom'''
+            if (row == 0): # if on top boundary
+                top_open = not (shape[0] == self.grid_shape[0]) # if we the maximal dimension, then top is not open
+                bottom_open = (self.grid[row+1,col] == -1)
+            elif (row == shape[0]-1): # on bottom boundary
+                bottom_open = not (shape[0] == self.grid_shape[0])
+                top_open = (self.grid[row-1,col] == -1)
+            else: # then we are in one of the middle rows
+                top_open = (self.grid[row-1,col] == -1)
+                bottom_open = (self.grid[row+1,col] == -1)
+            
+            '''left/right'''
+            if (col == 0): # if on left boundary
+                left_open = not (shape[1] == self.grid_shape[1]) # if we the maximal dimension, then top is not open
+                right_open = (self.grid[row,col+1] == -1)
+            elif (col == shape[1]-1): # on right boundary
+                right_open = not (shape[1] == self.grid_shape[1])
+                left_open = (self.grid[row,col-1] == -1)
+            else: # then we are in one of the middle rows
+                left_open = (self.grid[row,col-1] == -1)
+                right_open = (self.grid[row,col+1] == -1)
+
+            return {'top':top_open, 'bottom':bottom_open, 'left':left_open, 'right':right_open}
     
     def search_parents_for_same_adjacencies(self, parent1, parent2):
             '''
