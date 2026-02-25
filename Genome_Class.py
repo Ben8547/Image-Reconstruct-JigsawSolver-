@@ -18,17 +18,18 @@ class Genome:
     This class runs the details of the genetic algorithm
     '''
     def __init__(self, grid_list, dict_list, cached_energies, numberGenerations:int = 100, parentsPerGeneration:int = 4, populationSize:int = 1000, T0:float=10., Tf:float=0.5, geometric_decay_rate:float=0.9999, updates=False):
-        if len(grid_list > populationSize):
+        if len(grid_list) > populationSize:
             raise ValueError("grid_list cannot have more elements than populationSize")
         self.grid_shape = grid_list[0].shape # the seed grid - usually just the input puzzle image
         self.tile_data = dict_list # see the simulation_grid class
         self.cached_energies = cached_energies # see the simulation_grid class
 
         self.numberGenerations = numberGenerations # number of generations to run in the simulation
-        self.paraentsPerGen = parentsPerGeneration  # number of indeviduals to keep from the old generation at the begining of each new generation
+        self.parentsPerGen = parentsPerGeneration  # number of indeviduals to keep from the old generation at the begining of each new generation
         self.populationSize = populationSize # number of individuals in each generation
         self.chromosomes = np.empty(self.populationSize,dtype=object) # array of chromosome arrays; a chromosome is a permutation of the initial grid (a member of solution space  )
         self.chromosomes[0:len(grid_list)] = grid_list # populate the chromosomes with any initial chromosomes
+        self.product = self.chromosomes[0] # at the end of simulation, this will contain the output
 
         self.mutation_probability = 1./1000. # probability of random mutation when creating a child
         self.T0 = T0 # initial annealing parameter
@@ -42,18 +43,17 @@ class Genome:
     def run_simulation(self):
         self.initial_anneal()
         for generation in range(self.numberGenerations):
-            self.chromosomes = self.n_most_fit(self.paraentsPerGen)
+            self.chromosomes = self.n_most_fit(self.parentsPerGen)
             if self.updates:
-                print(f"Best starting energy of generation {generation} is {self.total_energy_grid(-1)}")
-                print(f"Worst starting energy of generation {generation} is {self.total_energy_grid(0)}")
-            for i in range(self.populationSize - self.paraentsPerGen):
-                parents  = np.random.choice(self.chromosomes[:self.paraentsPerGen],replace=False)
-                self.chromosomes[self.paraentsPerGen + i] = self.generate_child(parent1=parents[0],parent2=parents[1])
+                print(f"Best starting energy of generation {generation} is {self.total_energy_grid(self.chromosomes[0])}")
+            for i in range(self.populationSize - self.parentsPerGen):
+                parents  = np.random.choice(self.chromosomes[:self.parentsPerGen],2,replace=False)
+                self.chromosomes[self.parentsPerGen + i] = self.generate_child(parent1=parents[0],parent2=parents[1])
 
-            self.chromosomes[0] = self.n_most_fit(1)
-            self.chromosomes[1:] = np.empty(shape=self.populationSize-1,dtype=object)
-            self.initial_anneal # the annealing won't disrupt a fully formed image, but if we are missing a few tile, the annealing might be able to fix it
-        return self.chromosomes[0]
+        self.n_most_fit(1) # run this just to order the chromosome
+        self.chromosomes[1:] = np.empty(shape=self.populationSize-1,dtype=object)
+        self.initial_anneal() # the annealing won't disrupt a fully formed image, but if we are missing a few tile, the annealing might be able to fix it
+        self.product = self.chromosomes[0]
 
     def initial_anneal(self):
         ''' The genome class will perform well if matches have already been found, but our current algorithm is not great at finding said matches. Thus,
@@ -141,7 +141,7 @@ class Genome:
                     else:
                         placement = repetative_neighbors_dict[direction]
                     # place the tile in the chosen direction
-                    grid, num_used_tiles = self.place_tile(grid,direction,placement,used_tiles, unused_tiles, current_shape, num_used_tiles)
+                    grid, num_used_tiles = self.place_tile(grid,direction,placement,used_tiles, unused_tiles, current_shape, num_used_tiles, m, n)
                     
                 else: # there are no dual adjacencies present in the child
                     place_random = True
@@ -185,11 +185,11 @@ class Genome:
                 else:
                     placement = max_compatability
 
-                grid, num_used_tiles = self.place_tile(grid,direction,placement,used_tiles, unused_tiles, current_shape, num_used_tiles)
+                grid, num_used_tiles = self.place_tile(grid,direction,placement,used_tiles, unused_tiles, current_shape, num_used_tiles, m, n)
 
         return grid
     
-    def place_tile(self,grid,direction,placement,used_tiles,unused_tiles,current_shape, num_used_tiles):
+    def place_tile(self, grid, direction, placement, used_tiles, unused_tiles, current_shape, num_used_tiles, m, n):
         if direction == 0: #"top"
             if m == 0: # the tile in child is already at the top
                 grid = self.add_row_above(grid) # we don't need to worry about going over because we ensured that we chose directions open in that orientattion
@@ -213,7 +213,7 @@ class Genome:
             num_used_tiles += 1
             used_tiles.append(grid[m,n-1]) # add the used tile to the list
             unused_tiles[grid[m,n-1]] = None
-        elif direction == 'right':
+        elif direction == 3:
             if n == current_shape[1]-1: # the tile in child is already at the top
                 grid = self.add_column_right(grid)
             grid[m,n+1] = placement # pace the tile in approprate direction
@@ -301,8 +301,8 @@ class Genome:
             We return a list of dictionaries. Values of the dicts contain the adjacent member, if it is shared.
             We also need to store a list of all of the adjacencies so that we can choose one at random when filling the child. Repeats are fine - just think of it as weighting by the number of adjacencies that item has
             '''
-            parent1 = self.parents[0].ravel() # it will probably be easier to parse the flat arrays; probably fine to use ravel since I don't edit anything; .ravel is faster than .flat
-            parent2 = self.parents[1].ravel()
+            parent1 = parent1.ravel() # it will probably be easier to parse the flat arrays; probably fine to use ravel since I don't edit anything; .ravel is faster than .flat
+            parent2 = parent2.ravel()
             cols = self.grid_shape[1]
             rows = self.grid_shape[0]
 
@@ -362,3 +362,128 @@ class Genome:
 #
 #------------------------------------------
 #
+
+def generate_genome_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(8,8), color=True, energy_function = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y)), T0=10., Tf=0.5, geometric_decay_rate=0.9999, updates=False) -> simulation_grid:
+    """
+    Create a simulation_grid object directly from an image file.
+
+    filename : string : path of the file to be imported
+    grid_size : tuple of integers : gives the number of puzzle pieces which the image is split into
+    color : boolean : Determines if the image is read in color or black and white
+    """
+
+    if color:
+        color_volume = cv2.imread(filename, cv2.IMREAD_COLOR)# we need these to be int16 so that there is not wrapping of the unsinged integers when we compute energies. This should allow proper energy computation; commented out the int16 part because I ordered the terms in the mean
+        #print(type(color_volume[0,0,0])) # it is indeed stored as uint8
+        '''
+        This outputs a 3 dimensional array: (hight, width, 3)
+        We will need to store data differently taking this into account.
+        '''
+    else:
+        gray_matrix = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
+
+    '''Chop up the image'''
+
+    tiles = []
+
+    if not color:
+        width = gray_matrix.shape[1] # horizontal distance - should be the shoter of the two
+        length = gray_matrix.shape[0]
+        tile_width = width//grid_size[1]
+        tile_length = length//grid_size[0]
+        #print(tile_length)
+
+        for i in range(grid_size[0]):
+            for j in range(grid_size[1]):
+                tiles.append({
+                    0: gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)], 
+                    2: gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
+                    1: gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j],
+                    3: gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1],
+                    "entire": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)]# need this last one to reconstruct the array later
+                })
+        del gray_matrix # no need to store a large matrix any longer than we need it. We only need the boarders anyway
+    else:
+        width = color_volume.shape[1] # horizontal distance - should be the shoter of the two
+        length = color_volume.shape[0]
+        tile_width = width//grid_size[1]
+        tile_length = length//grid_size[0]
+
+        for i in range(grid_size[0]):
+            for j in range(grid_size[1]):
+                tiles.append({
+                    0: color_volume[tile_length*i,tile_width*j:tile_width*(j+1),:], # top
+                    2: color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1),:], # bottom
+                    1: color_volume[tile_length*i:tile_length*(i+1),tile_width*j,:], # left
+                    3: color_volume[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1,:], # right
+                    "entire": color_volume[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] # need this last one to reconstruct the array later
+                }) # we use the wierd ordering so that we can use modular arithmatic to send top to bottom and left to right easily (and the reverse)
+
+        del color_volume # no need to store a large matrix any longer than we need it. We only need the boarders anyway
+
+    num_tiles = grid_size[0]*grid_size[1] # total number of tiles in the image
+
+    grid = np.arange(0,num_tiles,1,dtype=np.uint8).reshape((grid_size[0],grid_size[1])) # the representation of the image; using uint8 because nothing is negative or bigger than 255 and thus using any other integer system would be wasteful
+
+
+    tiles = np.array(tiles, dtype=object) # apparently you can make a list of dictionaries into an array - this makes indexing later much easier - this is a change from the previous version
+
+    cache_energies = np.zeros((num_tiles,num_tiles,4),dtype=float)
+
+    for i in range(num_tiles):
+        for j in range(num_tiles):
+            for d_i in range(2):
+                if i == j: # diagonal elements are set to infinite since they can never happen anyway
+                    cache_energies[i,j,d_i] = np.inf
+                else:
+                    cache_energies[i,j,d_i] = energy_function( tiles[i][d_i], tiles[j][(d_i + 2) % 4] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
+
+    #Since we only did top and left, we can recover bottom and right since the matrix has the following property cache[i,j,0] = cache[j,i,2] and cache[i,j,1] = cache[j,i,3]
+    # by only computing half of the directions in the loop we should halve the compute time of the loop
+
+    X, Y = np.meshgrid(np.arange(0,num_tiles,1,dtype=np.uint8),np.arange(0,num_tiles,1,dtype=np.uint8))
+
+    cache_energies[X,Y,2] = cache_energies[Y,X,0]
+
+    cache_energies[X,Y,3] = cache_energies[Y,X,1]
+
+    #I'm fairly happy with my idea to use meshgrid to do this.
+
+    # this is actually suprisingly quick to compute though probably won't scale well for large puzzles. Luckily we only care about 64x64 right now.
+    # in the current case it might actually take longer to open a read a file than just recompute all of the energies
+    print("cached tile energies")
+    
+
+    return Genome([grid],tiles,cache_energies,numberGenerations=100,parentsPerGeneration=4,populationSize=1000,T0=T0, Tf=Tf, geometric_decay_rate=geometric_decay_rate,updates=updates)
+
+
+def reconstruct(simulation : Genome, color = True):
+    tile_width = len(simulation.tile_data[0][0]) # length of the top of an arbitrary tile
+    tile_length = len(simulation.tile_data[0][1]) # length of the left of an arbitrary tile
+    
+    width = tile_width * simulation.grid_shape[1] # horizontal distance - should be the shoter of the two
+    length = tile_length * simulation.grid_shape[0]
+    
+
+    if color:
+        resotred_page = np.zeros((length,width,3))
+
+        for i in range(simulation.grid_shape[0]):
+            for j in range(simulation.grid_shape[1]):
+                dict_index = simulation.product[i,j]
+                resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] = simulation.tile_data[dict_index]["entire"]
+    else:
+        resotred_page = np.zeros((length,width))
+
+        for i in range(simulation.grid_shape[0]):
+            for j in range(simulation.grid_shape[1]):
+                dict_index = simulation.product[i,j]
+                resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = simulation.tile_data[dict_index]["entire"]
+
+    return resotred_page.astype(np.uint8) # jpg can only handle this resolution anyway
+
+def save_output(filename, simulation : Genome, color = True, reconstruction = None):
+    if reconstruction == None:
+        resotred_page = reconstruct(simulation,color)
+
+    cv2.imwrite(filename, resotred_page)

@@ -365,8 +365,8 @@ def generate_simGrid_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=
         tile_length = length//grid_size[0]
         #print(tile_length)
 
-        for i in range(8):
-            for j in range(8):
+        for i in range(grid_size[0]):
+            for j in range(grid_size[1]):
                 tiles.append({
                     0: gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)], 
                     2: gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
@@ -432,7 +432,7 @@ def generate_simGrid_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=
     #Since we only did top and left, we can recover bottom and right since the matrix has the following property cache[i,j,0] = cache[j,i,2] and cache[i,j,1] = cache[j,i,3]
     # by only computing half of the directions in the loop we should halve the compute time of the loop
 
-    X, Y = np.meshgrid(np.arange(0,grid_size[0]*grid_size[1],1,dtype=np.uint8),np.arange(0,grid_size[0]*grid_size[1],1,dtype=np.uint8))
+    X, Y = np.meshgrid(np.arange(0,num_tiles,1,dtype=np.uint8),np.arange(0,num_tiles,1,dtype=np.uint8))
 
     cache_energies[X,Y,2] = cache_energies[Y,X,0]
 
