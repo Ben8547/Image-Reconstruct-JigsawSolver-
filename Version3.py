@@ -307,7 +307,6 @@ class simulation_grid:
 
     def anneal(self):
         '''This method runs the annealing process by iternating through markov with a tempurature schedule'''
-        print(f"Initial Energy: {self.energy}")
         T = self.T0
         i = 2
         while T > self.Tf: 
@@ -429,3 +428,37 @@ def generate_simGrid_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=
     
 
     return simulation_grid(grid, tiles, cache_energies)
+
+
+def reconstruct(simulation : simulation_grid, color = True):
+    tile_width = len(simulation.tile_data[0][0]) # length of the top of an arbitrary tile
+    tile_length = len(simulation.tile_data[0][1]) # length of the left of an arbitrary tile
+    
+    width = tile_width * simulation.grid_shape[1] # horizontal distance - should be the shoter of the two
+    length = tile_length * simulation.grid_shape[0]
+    
+
+    if color:
+        resotred_page = np.zeros((length,width,3))
+
+        for i in range(simulation.grid_shape[0]):
+            for j in range(simulation.grid_shape[1]):
+                dict_index = simulation.simGrid[i,j]
+                resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] = simulation.tile_data[dict_index]["entire"]
+    else:
+        resotred_page = np.zeros((length,width))
+
+        for i in range(simulation.grid_shape[0]):
+            for j in range(simulation.grid_shape[1]):
+                dict_index = simulation.simGrid[i,j]
+                resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = simulation.tile_data[dict_index]["entire"]
+
+    return resotred_page.astype(np.uint8) # jpg can only handle this resolution anyway
+
+def save_output(filename, simulation : simulation_grid, color = True, reconstruction = None):
+    if reconstruction == None:
+        resotred_page = reconstruct(simulation,color)
+
+    cv2.imwrite(filename, resotred_page)
+
+    
