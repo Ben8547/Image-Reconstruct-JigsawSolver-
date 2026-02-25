@@ -4,9 +4,8 @@ The goal of this document is to further refine the genetic and annealing methods
 
 import numpy as np
 from numpy.random import random, randint, choice
-import matplotlib.pyplot as plt
-import cv2
-from time import sleep # for debug utility
+from time import sleep # debug tool
+import cv2 # file I/O
 
 
 '''
@@ -29,7 +28,7 @@ class simulation_grid:
         #annealing constants:
         self.T0 = T0
         self.Tf = Tf
-        self.geometric_rate = geometric_decay_rate #0.9999999#0.9999
+        self.geometric_rate = geometric_decay_rate #0.9999999 - takes a few hours #0.9999 - takes a few seconds
 
     def best_buddies(self):
         # identify the best-buddies - used for the genetric algorithm
@@ -308,6 +307,7 @@ class simulation_grid:
 
     def anneal(self):
         '''This method runs the annealing process by iternating through markov with a tempurature schedule'''
+        print(f"Initial Energy: {self.energy}")
         T = self.T0
         i = 2
         while T > self.Tf: 
@@ -318,31 +318,24 @@ class simulation_grid:
             '''if it takes 4 seconds to vomplete the geometric regieme it will take 1e3/36 hours to complete the logarithmic regieme accourding to my back of the envalope calculatiosn.'''
             i += 1
 
+def generate_simGrid_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(8,8), color=True, energy_function = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y)) ) -> simulation_grid:
+    """
+    Create a simulation_grid object directly from an image file.
 
-if __name__ == "__main__": # so that we can just import the class if desired
-
-    '''
-    Setup
-    '''
-
-    '''Decide color or non-color'''
-
-    color = True
-
-    '''Load in the test file (permanent)'''
-
-    file = "Inputs/"+"test.jpg"
+    filename : string : path of the file to be imported
+    grid_size : tuple of integers : gives the number of puzzle pieces which the image is split into
+    color : boolean : Determines if the image is read in color or black and white
+    """
 
     if color:
-        color_volume = cv2.imread(file, cv2.IMREAD_COLOR)#.astype(np.int16) # we need these to be int16 so that there is not wrapping of the unsinged integers when we compute energies. This should allow proper energy computation; commented out the int16 part because I ordered the terms in the mean
+        color_volume = cv2.imread(filename, cv2.IMREAD_COLOR)# we need these to be int16 so that there is not wrapping of the unsinged integers when we compute energies. This should allow proper energy computation; commented out the int16 part because I ordered the terms in the mean
         #print(type(color_volume[0,0,0])) # it is indeed stored as uint8
         '''
         This outputs a 3 dimensional array: (hight, width, 3)
         We will need to store data differently taking this into account.
         '''
     else:
-        gray_matrix = cv2.imread(file, cv2.IMREAD_GRAYSCALE)#.astype(np.int16)
-        #print(gray_matrix)
+        gray_matrix = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
 
     '''Chop up the image'''
 
@@ -351,8 +344,8 @@ if __name__ == "__main__": # so that we can just import the class if desired
     if not color:
         width = gray_matrix.shape[1] # horizontal distance - should be the shoter of the two
         length = gray_matrix.shape[0]
-        tile_width = width//8
-        tile_length = length//8
+        tile_width = width//grid_size[1]
+        tile_length = length//grid_size[0]
         #print(tile_length)
 
         for i in range(8):
@@ -384,14 +377,12 @@ if __name__ == "__main__": # so that we can just import the class if desired
 
         del color_volume # no need to store a large matrix any longer than we need it. We only need the boarders anyway
 
-    grid = np.arange(0,64,1,dtype=np.uint8).reshape((8,8)) # the representation of the image; using uint8 because nothing is negative or bigger than 255 and thus using any other integer system would be wasteful
+    num_tiles = grid_size[0]*grid_size[1] # total number of tiles in the image
+
+    grid = np.arange(0,num_tiles,1,dtype=np.uint8).reshape((grid_size[0],grid_size[1])) # the representation of the image; using uint8 because nothing is negative or bigger than 255 and thus using any other integer system would be wasteful
 
 
     tiles = np.array(tiles, dtype=object) # apparently you can make a list of dictionaries into an array - this makes indexing later much easier - this is a change from the previous version
-
-    ''' Energy Function '''
-
-    compatability = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y)) # energy function
 
     '''
     Cache every possible interaction energy
@@ -411,15 +402,15 @@ if __name__ == "__main__": # so that we can just import the class if desired
     was using in my previous versions.
     '''
 
-    cache_energies = np.zeros((64,64,4),dtype=float)
+    cache_energies = np.zeros((num_tiles,num_tiles,4),dtype=float)
 
-    for i in range(64):
-        for j in range(64):
+    for i in range(num_tiles):
+        for j in range(num_tiles):
             for d_i in range(2):
                 if i == j: # diagonal elements are set to infinite since they can never happen anyway
                     cache_energies[i,j,d_i] = np.inf
                 else:
-                    cache_energies[i,j,d_i] = compatability( tiles[i][d_i], tiles[j][(d_i + 2) % 4] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
+                    cache_energies[i,j,d_i] = energy_function( tiles[i][d_i], tiles[j][(d_i + 2) % 4] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
 
     #Since we only did top and left, we can recover bottom and right since the matrix has the following property cache[i,j,0] = cache[j,i,2] and cache[i,j,1] = cache[j,i,3]
     # by only computing half of the directions in the loop we should halve the compute time of the loop
@@ -429,45 +420,12 @@ if __name__ == "__main__": # so that we can just import the class if desired
     cache_energies[X,Y,2] = cache_energies[Y,X,0]
 
     cache_energies[X,Y,3] = cache_energies[Y,X,1]
-    
+
     #I'm fairly happy with my idea to use meshgrid to do this.
 
     # this is actually suprisingly quick to compute though probably won't scale well for large puzzles. Luckily we only care about 64x64 right now.
     # in the current case it might actually take longer to open a read a file than just recompute all of the energies
     print("cached tile energies")
+    
 
-    '''
-    Compute Best-Buddies
-    '''
-
-
-    simulation = simulation_grid(grid, tiles, cache_energies)
-    print(f"Initial Energy: {simulation.energy}")
-    simulation.anneal()
-
-    '''Now that we have the ordered array, all that remains is to put the grayscale map back together.'''
-
-    if color:
-        resotred_page = np.zeros((length,width,3))
-
-        for i in range(simulation.grid_shape[0]):
-            for j in range(simulation.grid_shape[1]):
-                dict_index = simulation.simGrid[i,j]
-                resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] = simulation.tile_data[dict_index]["entire"]
-
-        resotred_page = resotred_page.astype(np.uint8) # jpg can only handle this resolution anyway
-        cv2.imwrite("Outputs/"+f"annealing-color.jpg", resotred_page)
-    else:
-        resotred_page = np.zeros((length,width))
-
-        for i in range(simulation.grid_shape[0]):
-            for j in range(simulation.grid_shape[1]):
-                dict_index = simulation.simGrid[i,j]
-                resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = simulation.tile_data[dict_index]["entire"]
-        resotred_page = resotred_page.astype(np.uint8)
-        cv2.imwrite("Outputs/"+f"annealing-grayscale.jpg", resotred_page)
-
-    print(f"Final energy {simulation.energy}")
-
-    plt.imshow(resotred_page)
-    plt.show()
+    return simulation_grid(grid, tiles, cache_energies)
