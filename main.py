@@ -14,7 +14,7 @@ file = "Inputs/"+"Squirrel_Puzzle.jpg"
 
 compatability = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y))  # energy function
 
-simulation = generate_simGrid_from_file(file, color=Color, energy_function=compatability, grid_size=(8,8))
+simulation = generate_simGrid_from_file(file, color=Color, energy_function=compatability, grid_size=(8,8), T0=10., Tf=0.5, geometric_decay_rate=0.9999)
 
 print(f"Initial Energy: {simulation.energy}")
 

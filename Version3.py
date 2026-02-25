@@ -317,7 +317,15 @@ class simulation_grid:
             '''if it takes 4 seconds to vomplete the geometric regieme it will take 1e3/36 hours to complete the logarithmic regieme accourding to my back of the envalope calculatiosn.'''
             i += 1
 
-def generate_simGrid_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(8,8), color=True, energy_function = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y)) ) -> simulation_grid:
+
+class Genome:
+    '''
+    This class runs the details of the genetic algorithm
+    '''
+    def __init__(self):
+        pass
+
+def generate_simGrid_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(8,8), color=True, energy_function = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y)), T0=10., Tf=0.5, geometric_decay_rate=0.9999 ) -> simulation_grid:
     """
     Create a simulation_grid object directly from an image file.
 
@@ -427,7 +435,7 @@ def generate_simGrid_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=
     print("cached tile energies")
     
 
-    return simulation_grid(grid, tiles, cache_energies)
+    return simulation_grid(grid, tiles, cache_energies, T0, Tf, geometric_decay_rate)
 
 
 def reconstruct(simulation : simulation_grid, color = True):
