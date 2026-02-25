@@ -17,6 +17,14 @@ c) Also try adding some more global rearangements to get blocks of aggregated ti
 d) Create a more precise temperature schedule since the current geometric cooling seems to waste a lot of time spuddling on high temperatures.
 '''
 
+#
+#------------------------------------------
+#
+# Simulated Annealing Class
+#
+#------------------------------------------
+#
+
 class simulation_grid:
     def __init__(self, grid, dict_list, cached_energies, T0=10., Tf=0.5, geometric_decay_rate=0.9999):
         self.simGrid = grid
@@ -317,13 +325,15 @@ class simulation_grid:
             '''if it takes 4 seconds to vomplete the geometric regieme it will take 1e3/36 hours to complete the logarithmic regieme accourding to my back of the envalope calculatiosn.'''
             i += 1
 
+#
+#
+#------------------------------------------
+#
+# I/O Functions
+#
+#------------------------------------------
+#
 
-class Genome:
-    '''
-    This class runs the details of the genetic algorithm
-    '''
-    def __init__(self):
-        pass
 
 def generate_simGrid_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(8,8), color=True, energy_function = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y)), T0=10., Tf=0.5, geometric_decay_rate=0.9999 ) -> simulation_grid:
     """
@@ -468,5 +478,3 @@ def save_output(filename, simulation : simulation_grid, color = True, reconstruc
         resotred_page = reconstruct(simulation,color)
 
     cv2.imwrite(filename, resotred_page)
-
-    
