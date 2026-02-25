@@ -30,6 +30,7 @@ class Genome:
         self.chromosomes = np.empty(self.populationSize,dtype=object) # array of chromosome arrays; a chromosome is a permutation of the initial grid (a member of solution space  )
         self.chromosomes[0:len(grid_list)] = grid_list # populate the chromosomes with any initial chromosomes
         self.product = self.chromosomes[0] # at the end of simulation, this will contain the output
+        self.energy = self.total_energy_grid(self.product)  # will contain the energy at the end of the simulation
 
         self.mutation_probability = 1./1000. # probability of random mutation when creating a child
         self.T0 = T0 # initial annealing parameter
@@ -44,8 +45,9 @@ class Genome:
         self.initial_anneal()
         for generation in range(self.numberGenerations):
             self.chromosomes = self.n_most_fit(self.parentsPerGen)
+            self.energy = self.total_energy_grid(self.chromosomes[0])
             if self.updates:
-                print(f"Best starting energy of generation {generation} is {self.total_energy_grid(self.chromosomes[0])}")
+                print(f"Best starting energy of generation {generation} is {self.energy}")
             for i in range(self.populationSize - self.parentsPerGen):
                 parents  = np.random.choice(self.chromosomes[:self.parentsPerGen],2,replace=False)
                 self.chromosomes[self.parentsPerGen + i] = self.generate_child(parent1=parents[0],parent2=parents[1])
@@ -53,6 +55,7 @@ class Genome:
         self.n_most_fit(1) # run this just to order the chromosome
         self.chromosomes[1:] = np.empty(shape=self.populationSize-1,dtype=object)
         self.initial_anneal() # the annealing won't disrupt a fully formed image, but if we are missing a few tile, the annealing might be able to fix it
+        self.energy = self.total_energy_grid(self.chromosomes[0])
         self.product = self.chromosomes[0]
 
     def initial_anneal(self):
