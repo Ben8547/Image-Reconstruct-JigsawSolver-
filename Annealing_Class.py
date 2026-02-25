@@ -448,7 +448,7 @@ def generate_simGrid_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=
     return simulation_grid(grid, tiles, cache_energies, T0, Tf, geometric_decay_rate)
 
 
-def reconstruct(simulation : simulation_grid, color = True):
+def annealing_reconstruct(simulation : simulation_grid, color = True):
     tile_width = len(simulation.tile_data[0][0]) # length of the top of an arbitrary tile
     tile_length = len(simulation.tile_data[0][1]) # length of the left of an arbitrary tile
     
@@ -473,7 +473,7 @@ def reconstruct(simulation : simulation_grid, color = True):
 
     return resotred_page.astype(np.uint8) # jpg can only handle this resolution anyway
 
-def save_output(filename, simulation : simulation_grid, color = True, reconstruction = None):
+def save_annealing_output(filename, simulation : simulation_grid, color = True, reconstruction = None):
     if reconstruction == None:
         resotred_page = reconstruct(simulation,color)
 

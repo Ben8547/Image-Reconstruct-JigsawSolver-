@@ -1,4 +1,5 @@
-from Annealing_Class import generate_simGrid_from_file, save_output, reconstruct
+from Annealing_Class import generate_simGrid_from_file, save_annealing_output, annealing_reconstruct
+from Genome_Class import generate_genome_from_file, save_genome_output, genome_reconstruct
 import matplotlib.pyplot as plt
 import numpy as np
 from time import sleep

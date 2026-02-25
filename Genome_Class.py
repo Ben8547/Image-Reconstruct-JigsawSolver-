@@ -457,7 +457,7 @@ def generate_genome_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(
     return Genome([grid],tiles,cache_energies,numberGenerations=100,parentsPerGeneration=4,populationSize=1000,T0=T0, Tf=Tf, geometric_decay_rate=geometric_decay_rate,updates=updates)
 
 
-def reconstruct(simulation : Genome, color = True):
+def genome_reconstruct(simulation : Genome, color = True):
     tile_width = len(simulation.tile_data[0][0]) # length of the top of an arbitrary tile
     tile_length = len(simulation.tile_data[0][1]) # length of the left of an arbitrary tile
     
@@ -482,7 +482,7 @@ def reconstruct(simulation : Genome, color = True):
 
     return resotred_page.astype(np.uint8) # jpg can only handle this resolution anyway
 
-def save_output(filename, simulation : Genome, color = True, reconstruction = None):
+def save_genome_output(filename, simulation : Genome, color = True, reconstruction = None):
     if reconstruction == None:
         resotred_page = reconstruct(simulation,color)
 
