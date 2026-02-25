@@ -98,53 +98,109 @@ class Genome:
         else: # no adjacencies
             grid[0,0] = np.random.choice(parent1.ravel())
 
-        self.used_tiles = [None, grid[0,0]] # add the used tile to the list - this cannot be added again
-        self.unused_tiles = np.array([i for i in range(self.grid_shape[0]*self.grid_shape[1])],dtype=object) # this one specifically is an array because we need to use a mask on it later
-        self.unused_tiles[grid[0,0]] = None
-        self.num_used_tiles = 1
+        used_tiles = [None, grid[0,0]] # add the used tile to the list - this cannot be added again
+        unused_tiles = np.array([i for i in range(self.grid_shape[0]*self.grid_shape[1])],dtype=object) # this one specifically is an array because we need to use a mask on it later
+        unused_tiles[grid[0,0]] = None
+        num_used_tiles = 1
 
-        while self.num_used_tiles < len(parent1.ravel()):
+        while num_used_tiles < self.grid_shape[0]*self.grid_shape[1]:
             # start by searching for an element in the child in parent_adjacencies
             current_shape = grid.shape
             place_random = False
-            if self.parent_adjacencies: # check that there even are duplicate adjacencies
-                #print(self.parent_adjacencies) # debug
+            if parent_adjacencies: # check that there even are duplicate adjacencies
                 dual_adjacent_in_child = []
-                for i, element in enumerate(self.grid.ravel()):
+                for i, element in enumerate(grid.ravel()):
                     # i is the index of the raveled array; element is the integer representing the tile
                     m = i // current_shape[1] # row index of element
                     n = i % current_shape[1] # column index of element
-                    if element in self.parent_adjacencies:
-                        open = self.check_open_side(m,n, current_shape)
-                        repetative_neighbors_dict = self.parent_adjacencies_lookup[element] # should return a dictionary with the parental repeated neighbors on each side listed
-                        if any( ( (repetative_neighbors_dict[d] not in self.used_tiles) and ( open[d] != False ) ) for d in outerself.directions ): # check that the intended neighbor has not already been place in the child; recall that None is in the list of used tiles so we get True if there is no ajacency
+                    if element in parent_adjacencies:
+                        open = self.check_open_side(grid, m, n, current_shape)
+                        repetative_neighbors_dict = parent_adjacencies_lookup[element] # should return a dictionary with the parental repeated neighbors on each side listed
+                        if any( ( (repetative_neighbors_dict[d] not in used_tiles) and ( open[d] != False ) ) for d in {0,1,2,3} ): # check that the intended neighbor has not already been place in the child; recall that None is in the list of used tiles so we get True if there is no ajacency
                             dual_adjacent_in_child.append(i) # this will be a list of all of the elements in the child that have repeated adjacencies in the parents that also have open sides in the grid
                         else: # then the partner of this tile is used already - there is no reason to consider either or them in future loops
-                            self.parent_adjacencies.remove(element) # no reason to consider this element again on future loops
+                            parent_adjacencies.remove(element) # no reason to consider this element again on future loops
                 if dual_adjacent_in_child: # check the list is non-empty; i.e. were any of the neighbors not already chosen?
                     # choose a tile which a neighbour
                     tile = np.random.choice(dual_adjacent_in_child) # tile index in the flat array
                     m = tile // current_shape[1] # row of tile
                     n = tile % current_shape[1] # column of tile
-                    tile = self.grid[m,n]
+                    tile = grid[m,n]
                     # now find its common neighbours in the parents, and choose one at random
-                    repetative_neighbors_dict = self.parent_adjacencies_lookup[tile]
+                    repetative_neighbors_dict = parent_adjacencies_lookup[tile]
                     valid_directions = []
-                    for direction in ['top','bottom','left','right']:
-                        if (repetative_neighbors_dict[direction] != None) and self.check_open_side(m,n,current_shape)[direction]: # requires the element to be open in that direction and for it to actully have a valid neighbor
+                    for direction in {0,1,2,3}:
+                        if (repetative_neighbors_dict[direction] != None) and self.check_open_side(grid, m,n,current_shape)[direction]: # requires the element to be open in that direction and for it to actully have a valid neighbor
                             valid_directions.append(direction)
                     direction = np.random.choice(valid_directions) # choose a random valid direction
 
                     if np.random.random() < self.mutation_probability: # random mutation
-                        placement = np.random.choice(self.unused_tiles[self.unused_tiles != None])
+                        placement = np.random.choice(unused_tiles[unused_tiles != None])
                     else:
                         placement = repetative_neighbors_dict[direction]
+                    # place the tile in the chosen direction
+                    if direction == 0: #"top"
+                        if m == 0: # the tile in child is already at the top
+                            grid = self.add_row_above(grid) # we don't need to worry about going over because we ensured that we chose directions open in that orientattion
+                            m += 1 # adding on the top, pushes the other indicies up
+                        grid[m-1,n] =  placement # pace the tile in approprate direction
+                        num_used_tiles += 1
+                        used_tiles.append(grid[m-1,n]) # add the used tile to the list
+                        unused_tiles[grid[m-1,n]] = None
+                    elif direction == 2: #'bottom' 
+                        if m == current_shape[0]-1: # the tile in child is already at the bottom
+                            grid = self.add_row_below(grid)
+                        grid[m+1,n] = placement # pace the tile in approprate direction
+                        num_used_tiles += 1
+                        used_tiles.append(grid[m+1,n]) # add the used tile to the list
+                        unused_tiles[grid[m+1,n]] = None
+                    elif direction == 1: #'left'
+                        if n == 0: # the tile in child is already at the top
+                            grid = self.add_column_left(grid)
+                            n += 1 # adding on the left pushes the other indicies up
+                        grid[m,n-1] = placement # pace the tile in approprate direction
+                        num_used_tiles += 1
+                        used_tiles.append(grid[m,n-1]) # add the used tile to the list
+                        unused_tiles[grid[m,n-1]] = None
+                    elif direction == 'right':
+                        if n == current_shape[1]-1: # the tile in child is already at the top
+                            grid = self.add_column_right(grid)
+                        grid[m,n+1] = placement # pace the tile in approprate direction
+                        self.num_used_tiles += 1
+                        used_tiles.append(grid[m,n+1]) # add the used tile to the list
+                        unused_tiles[grid[m,n+1]] = None
+                    
+                else: # there are no dual adjacencies present in the child
+                    place_random = True
+
+            else: #there are no dulpicate adjacencies 
+                place_random = True
         return
+    
+    def add_row_above(self, grid):
+            num_cols = self.grid.shape[1]
+            new_grid = np.vstack((-np.ones((1,num_cols),dtype=int), grid)) # whithout setting dtype=int it turns the entire array into a float but we need it as an int since these are indicies
+            return new_grid
+
+    def add_row_below(self,grid):
+        num_cols = self.grid.shape[1]
+        new_grid = np.vstack((grid,-np.ones((1,num_cols), dtype=int)))
+        return new_grid
+
+    def add_column_left(self,grid):
+        num_rows = self.grid.shape[0]
+        new_grid = np.hstack((-np.ones((num_rows,1),dtype=int), grid))
+        return new_grid
+    
+    def add_column_right(self,grid):
+        num_rows = self.grid.shape[0]
+        new_grid = np.hstack((grid,-np.ones((num_rows,1), dtype=int)))
+        return new_grid
     
     def check_open_side(self, grid, row:int, col:int, shape:tuple) -> tuple: # check this function seperately, it works perfectly (see ./python_tests/).
             '''special cases'''
             if shape == (1,1): # there is only a single element so all sides are open
-                return {'top':np.True_, 'bottom':np.True_, 'left':np.True_, 'right':np.True_} # may as well use np.True_ to be consistant with the rest of the entries
+                return {0:np.True_, 2:np.True_, 1:np.True_, 3:np.True_} # may as well use np.True_ to be consistant with the rest of the entries
             if shape[0] == 1: # the top and bottom must be open since there is only a single row
                 '''left/right'''
                 if (col == 0): # if on left boundary
@@ -156,7 +212,7 @@ class Genome:
                 else: # then we are in one of the middle rows
                     left_open = (grid[row,col-1] == -1)
                     right_open = (grid[row,col+1] == -1)
-                return {'top':np.True_, 'bottom':np.True_, 'left':left_open, 'right':right_open}
+                return {0:np.True_, 2:np.True_, 1:left_open, 3:right_open}
             if shape[1] == 1: # left and right must be open
                 '''top/bottom'''
                 if (row == 0): # if on top boundary
@@ -168,31 +224,31 @@ class Genome:
                 else: # then we are in one of the middle rows
                     top_open = (grid[row-1,col] == -1)
                     bottom_open = (grid[row+1,col] == -1)
-                return {'top':top_open, 'bottom':bottom_open, 'left':np.True_, 'right':np.True_}
+                return {0:top_open, 2:bottom_open, 1:np.True_, 3:np.True_}
             
             '''top/bottom'''
             if (row == 0): # if on top boundary
                 top_open = not (shape[0] == self.grid_shape[0]) # if we the maximal dimension, then top is not open
-                bottom_open = (self.grid[row+1,col] == -1)
+                bottom_open = (grid[row+1,col] == -1)
             elif (row == shape[0]-1): # on bottom boundary
                 bottom_open = not (shape[0] == self.grid_shape[0])
-                top_open = (self.grid[row-1,col] == -1)
+                top_open = (grid[row-1,col] == -1)
             else: # then we are in one of the middle rows
-                top_open = (self.grid[row-1,col] == -1)
-                bottom_open = (self.grid[row+1,col] == -1)
+                top_open = (grid[row-1,col] == -1)
+                bottom_open = (grid[row+1,col] == -1)
             
             '''left/right'''
             if (col == 0): # if on left boundary
                 left_open = not (shape[1] == self.grid_shape[1]) # if we the maximal dimension, then top is not open
-                right_open = (self.grid[row,col+1] == -1)
+                right_open = (grid[row,col+1] == -1)
             elif (col == shape[1]-1): # on right boundary
                 right_open = not (shape[1] == self.grid_shape[1])
-                left_open = (self.grid[row,col-1] == -1)
+                left_open = (grid[row,col-1] == -1)
             else: # then we are in one of the middle rows
-                left_open = (self.grid[row,col-1] == -1)
-                right_open = (self.grid[row,col+1] == -1)
+                left_open = (grid[row,col-1] == -1)
+                right_open = (grid[row,col+1] == -1)
 
-            return {'top':top_open, 'bottom':bottom_open, 'left':left_open, 'right':right_open}
+            return {0:top_open, 2:bottom_open, 1:left_open, 3:right_open}
     
     def search_parents_for_same_adjacencies(self, parent1, parent2):
             '''
@@ -205,7 +261,7 @@ class Genome:
             cols = self.grid_shape[1]
             rows = self.grid_shape[0]
 
-            list_of_tuples = [{"top": None, "bottom": None, "left": None, "right": None} for _ in range(len(parent1))] # if it's in the "top" slot then it means that it is to the left of the entry the dictionary represents
+            list_of_tuples = [{0: None, 2: None, 1: None, 3: None} for _ in range(len(parent1))] # if it's in the 0 slot then it means that it is to the left of the entry the dictionary represents
             list_of_adjacencies = []
 
             for i in range(len(parent1)//2): # we can skip every other entry and still read each adjacency. (or we could read each one and only consider left and top adjacencies but that is probably less efficient since most of the time probably comes from the element in parent two)
@@ -214,8 +270,8 @@ class Genome:
                 if (i % cols != 0 and parent2_arg % cols != 0): # conditions for not having a neighbor on a particular side; both are not on top row
                     if parent1[i-1]==parent2[parent2_arg-1]:
                         neighbor = parent1[i-1]
-                        list_of_tuples[parent1[i]]["left"] = neighbor
-                        list_of_tuples[neighbor]["right"] = parent1[i] # need to be able to look up both ways
+                        list_of_tuples[parent1[i]][1] = neighbor
+                        list_of_tuples[neighbor][3] = parent1[i] # need to be able to look up both ways
                         if parent1[i] not in list_of_adjacencies:
                             list_of_adjacencies.append(parent1[i])
                         if neighbor not in list_of_adjacencies:
@@ -224,8 +280,8 @@ class Genome:
                 if (i >= cols and parent2_arg >= cols):
                     if parent1[i - cols] == parent2[parent2_arg - cols]:
                         neighbor = parent1[i-cols]
-                        list_of_tuples[parent1[i]]["top"] = neighbor
-                        list_of_tuples[neighbor]["bottom"] = parent1[i] # need to be able to look up both ways
+                        list_of_tuples[parent1[i]][0] = neighbor
+                        list_of_tuples[neighbor][2] = parent1[i] # need to be able to look up both ways
                         if parent1[i] not in list_of_adjacencies:
                             list_of_adjacencies.append(parent1[i])
                         if neighbor not in list_of_adjacencies:
@@ -234,8 +290,8 @@ class Genome:
                 if (i % cols != cols-1) and (parent2_arg % cols != cols-1):
                     if parent1[i+1] == parent2[parent2_arg+1]:
                         neighbor = parent1[i+1]
-                        list_of_tuples[parent1[i]]["right"] = neighbor
-                        list_of_tuples[neighbor]["left"] = parent1[i] # need to be able to look up both ways
+                        list_of_tuples[parent1[i]][3] = neighbor
+                        list_of_tuples[neighbor][1] = parent1[i] # need to be able to look up both ways
                         if parent1[i] not in list_of_adjacencies:
                             list_of_adjacencies.append(parent1[i])
                         if neighbor not in list_of_adjacencies:
@@ -244,8 +300,8 @@ class Genome:
                 if (i // cols != rows-1) and (parent2_arg // cols != rows-1):
                     if parent1[i+cols] == parent2[parent2_arg + cols]:
                         neighbor = parent1[i+cols]
-                        list_of_tuples[parent1[i]]["bottom"] = neighbor
-                        list_of_tuples[neighbor]["top"] = parent1[i] # need to be able to look up both ways
+                        list_of_tuples[parent1[i]][2] = neighbor
+                        list_of_tuples[neighbor][0] = parent1[i] # need to be able to look up both ways
                         if parent1[i] not in list_of_adjacencies:
                             list_of_adjacencies.append(parent1[i])
                         if neighbor not in list_of_adjacencies:
