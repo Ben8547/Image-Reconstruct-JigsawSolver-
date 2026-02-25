@@ -37,6 +37,8 @@ class Genome:
 
         self.updates = updates # boolean that determines weather to print updates after each generation completes
 
+        self.directions = {0,1,2,3}
+
     def run_simulation(self):
         self.initial_anneal()
         for generation in range(self.numberGenerations):
@@ -116,7 +118,7 @@ class Genome:
                     if element in parent_adjacencies:
                         open = self.check_open_side(grid, m, n, current_shape)
                         repetative_neighbors_dict = parent_adjacencies_lookup[element] # should return a dictionary with the parental repeated neighbors on each side listed
-                        if any( ( (repetative_neighbors_dict[d] not in used_tiles) and ( open[d] != False ) ) for d in {0,1,2,3} ): # check that the intended neighbor has not already been place in the child; recall that None is in the list of used tiles so we get True if there is no ajacency
+                        if any( ( (repetative_neighbors_dict[d] not in used_tiles) and ( open[d] != False ) ) for d in self.directions ): # check that the intended neighbor has not already been place in the child; recall that None is in the list of used tiles so we get True if there is no ajacency
                             dual_adjacent_in_child.append(i) # this will be a list of all of the elements in the child that have repeated adjacencies in the parents that also have open sides in the grid
                         else: # then the partner of this tile is used already - there is no reason to consider either or them in future loops
                             parent_adjacencies.remove(element) # no reason to consider this element again on future loops
@@ -129,7 +131,7 @@ class Genome:
                     # now find its common neighbours in the parents, and choose one at random
                     repetative_neighbors_dict = parent_adjacencies_lookup[tile]
                     valid_directions = []
-                    for direction in {0,1,2,3}:
+                    for direction in self.directions:
                         if (repetative_neighbors_dict[direction] != None) and self.check_open_side(grid, m,n,current_shape)[direction]: # requires the element to be open in that direction and for it to actully have a valid neighbor
                             valid_directions.append(direction)
                     direction = np.random.choice(valid_directions) # choose a random valid direction
@@ -175,6 +177,29 @@ class Genome:
 
             else: #there are no dulpicate adjacencies 
                 place_random = True
+
+            if place_random:
+                # find elements that have open side:
+                valid_elements = []
+                for i, element in enumerate(grid.ravel()):
+                    if element != -1:
+                        # i is the index of the raveled array; element is the integer representing the tile
+                        m = i // current_shape[1] # row index of element
+                        n = i % current_shape[1] # column index of element
+                        open = self.check_open_side(grid, m,n, current_shape)
+                        any_open = any(open[j] for j in self.directions)
+                        if any_open:
+                            valid_elements.append(i)
+                element_index = np.random.choice(valid_elements) # choose one of the valid elements to add on to
+                m = element_index // current_shape[1]
+                n = element_index % current_shape[1]
+                element = grid[m,n]
+                # now find the valid neighbors of that element
+                valid_directions = []
+                for direction in self.directions:
+                        if self.check_open_side(grid, m, n, current_shape)[direction]: # requires the element to be open in that direction and for it to actully have a valid neighbor
+                            valid_directions.append(direction)
+                direction = np.random.choice(valid_directions) # choose once of the valid directions at random.
         return
     
     def add_row_above(self, grid):
