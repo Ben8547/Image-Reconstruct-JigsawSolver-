@@ -17,7 +17,7 @@ class Genome:
     '''
     This class runs the details of the genetic algorithm
     '''
-    def __init__(self, grid_list, dict_list, cached_energies, numberGenerations:int = 100, parentsPerGeneration:int = 4, populationSize:int = 1000, T0:float=10., Tf:float=0.5, geometric_decay_rate:float=0.9999):
+    def __init__(self, grid_list, dict_list, cached_energies, numberGenerations:int = 100, parentsPerGeneration:int = 4, populationSize:int = 1000, T0:float=10., Tf:float=0.5, geometric_decay_rate:float=0.9999, updates=False):
         if len(grid_list > populationSize):
             raise ValueError("grid_list cannot have more elements than populationSize")
         self.grid_shape = grid_list[0].shape # the seed grid - usually just the input puzzle image
@@ -34,6 +34,24 @@ class Genome:
         self.T0 = T0 # initial annealing parameter
         self.Tf = Tf # initial annealing parameter
         self.cooling_rate = geometric_decay_rate # initial annealing parameter
+
+        self.updates = updates # boolean that determines weather to print updates after each generation completes
+
+    def run_simulation(self):
+        self.initial_anneal()
+        for generation in range(self.numberGenerations):
+            self.chromosomes = self.n_most_fit(self.paraentsPerGen)
+            if self.updates:
+                print(f"Best starting energy of generation {generation} is {self.total_energy_grid(-1)}")
+                print(f"Worst starting energy of generation {generation} is {self.total_energy_grid(0)}")
+            for i in range(self.populationSize - self.paraentsPerGen):
+                parents  = np.random.choice(self.chromosomes[:self.paraentsPerGen],replace=False)
+                self.chromosomes[self.paraentsPerGen + i] = self.generate_child(parent1=parents[0],parent2=parents[1])
+
+            self.chromosomes[0] = self.n_most_fit(1)
+            self.chromosomes[1:] = np.empty(shape=self.populationSize-1,dtype=object)
+            self.initial_anneal # the annealing won't disrupt a fully formed image, but if we are missing a few tile, the annealing might be able to fix it
+        return self.chromosomes[0]
 
     def initial_anneal(self):
         ''' The genome class will perform well if matches have already been found, but our current algorithm is not great at finding said matches. Thus,
