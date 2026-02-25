@@ -36,13 +36,3 @@ Running the pure annealing algorithm with single and subarray swaps at 0.67 and 
   <img src="https://github.com/Ben8547/Image-Reconstruct-JigsawSolver-/blob/main/ReadMeImages/pure_annealed_0.999999.jpg" width="300"/>
   <figcaption><em>Figure 6: Result of simulated annealing with very slow geometric scaling. The final energy was 7948.</em></figcaption>
 </figure>
-
-Each file represents an implementation of a distinct method.
-
-* Make_Puzzle.py transforms and image into a scrambled puzzle.
-* test-descrambler-simmulatedAnnealingOnly.py is my original method for puzzle solving, it uses a pure simulated annealing approach.
-* test-genetic_algorithm_method.py is an adaptation of the method presented in https://doi.org/10.1109/CVPR.2013.231; I have added some annealing on top of their genetic algorithm.
-* main.py will contain my most efficacious program once I am finished.
-* Various included image files serve as test puzzles.
-* Version3.py is a work in progress to vectorize the simulated annealing model adding additional functionality as well.
-* I have plans to implement some Gaussian process methods as well. I think that it would be interesting to compare the method to annealing.
