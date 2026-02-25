@@ -1,4 +1,4 @@
-from Version3 import generate_simGrid_from_file, save_output, reconstruct
+from Annealing_Class import generate_simGrid_from_file, save_output, reconstruct
 import matplotlib.pyplot as plt
 import numpy as np
 from time import sleep

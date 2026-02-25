@@ -141,36 +141,7 @@ class Genome:
                     else:
                         placement = repetative_neighbors_dict[direction]
                     # place the tile in the chosen direction
-                    if direction == 0: #"top"
-                        if m == 0: # the tile in child is already at the top
-                            grid = self.add_row_above(grid) # we don't need to worry about going over because we ensured that we chose directions open in that orientattion
-                            m += 1 # adding on the top, pushes the other indicies up
-                        grid[m-1,n] =  placement # pace the tile in approprate direction
-                        num_used_tiles += 1
-                        used_tiles.append(grid[m-1,n]) # add the used tile to the list
-                        unused_tiles[grid[m-1,n]] = None
-                    elif direction == 2: #'bottom' 
-                        if m == current_shape[0]-1: # the tile in child is already at the bottom
-                            grid = self.add_row_below(grid)
-                        grid[m+1,n] = placement # pace the tile in approprate direction
-                        num_used_tiles += 1
-                        used_tiles.append(grid[m+1,n]) # add the used tile to the list
-                        unused_tiles[grid[m+1,n]] = None
-                    elif direction == 1: #'left'
-                        if n == 0: # the tile in child is already at the top
-                            grid = self.add_column_left(grid)
-                            n += 1 # adding on the left pushes the other indicies up
-                        grid[m,n-1] = placement # pace the tile in approprate direction
-                        num_used_tiles += 1
-                        used_tiles.append(grid[m,n-1]) # add the used tile to the list
-                        unused_tiles[grid[m,n-1]] = None
-                    elif direction == 'right':
-                        if n == current_shape[1]-1: # the tile in child is already at the top
-                            grid = self.add_column_right(grid)
-                        grid[m,n+1] = placement # pace the tile in approprate direction
-                        self.num_used_tiles += 1
-                        used_tiles.append(grid[m,n+1]) # add the used tile to the list
-                        unused_tiles[grid[m,n+1]] = None
+                    grid, num_used_tiles = self.place_tile(grid,direction,placement,used_tiles, unused_tiles, current_shape, num_used_tiles)
                     
                 else: # there are no dual adjacencies present in the child
                     place_random = True
@@ -200,25 +171,74 @@ class Genome:
                         if self.check_open_side(grid, m, n, current_shape)[direction]: # requires the element to be open in that direction and for it to actully have a valid neighbor
                             valid_directions.append(direction)
                 direction = np.random.choice(valid_directions) # choose once of the valid directions at random.
-        return
+
+                # get a random sample of unused tiles
+                unused_tile_pure = unused_tiles[unused_tiles != None]
+                num_sample = np.min([20, len(unused_tile_pure)]) # by doing this random sampling, it ensures if the most compatable one it not the true fit, we have a chance of still getting the true fit
+                samples = np.random.choice(unused_tile_pure,num_sample,replace=False)
+                compat = self.cached_energies[element*np.ones_like(samples), samples, direction]
+                max_compatability = samples[np.argmax(compat)]
+                # add the chosen neighbor to the child
+
+                if np.random.random() < self.mutation_probability: # random mutation
+                    placement = np.random.choice(unused_tile_pure)
+                else:
+                    placement = max_compatability
+
+                grid, num_used_tiles = self.place_tile(grid,direction,placement,used_tiles, unused_tiles, current_shape, num_used_tiles)
+
+        return grid
+    
+    def place_tile(self,grid,direction,placement,used_tiles,unused_tiles,current_shape, num_used_tiles):
+        if direction == 0: #"top"
+            if m == 0: # the tile in child is already at the top
+                grid = self.add_row_above(grid) # we don't need to worry about going over because we ensured that we chose directions open in that orientattion
+                m += 1 # adding on the top, pushes the other indicies up
+            grid[m-1,n] =  placement # pace the tile in approprate direction
+            num_used_tiles += 1
+            used_tiles.append(grid[m-1,n]) # add the used tile to the list
+            unused_tiles[grid[m-1,n]] = None
+        elif direction == 2: #'bottom' 
+            if m == current_shape[0]-1: # the tile in child is already at the bottom
+                grid = self.add_row_below(grid)
+            grid[m+1,n] = placement # pace the tile in approprate direction
+            num_used_tiles += 1
+            used_tiles.append(grid[m+1,n]) # add the used tile to the list
+            unused_tiles[grid[m+1,n]] = None
+        elif direction == 1: #'left'
+            if n == 0: # the tile in child is already at the top
+                grid = self.add_column_left(grid)
+                n += 1 # adding on the left pushes the other indicies up
+            grid[m,n-1] = placement # pace the tile in approprate direction
+            num_used_tiles += 1
+            used_tiles.append(grid[m,n-1]) # add the used tile to the list
+            unused_tiles[grid[m,n-1]] = None
+        elif direction == 'right':
+            if n == current_shape[1]-1: # the tile in child is already at the top
+                grid = self.add_column_right(grid)
+            grid[m,n+1] = placement # pace the tile in approprate direction
+            num_used_tiles += 1
+            used_tiles.append(grid[m,n+1]) # add the used tile to the list
+            unused_tiles[grid[m,n+1]] = None
+        return grid, num_used_tiles
     
     def add_row_above(self, grid):
-            num_cols = self.grid.shape[1]
+            num_cols = grid.shape[1]
             new_grid = np.vstack((-np.ones((1,num_cols),dtype=int), grid)) # whithout setting dtype=int it turns the entire array into a float but we need it as an int since these are indicies
             return new_grid
 
     def add_row_below(self,grid):
-        num_cols = self.grid.shape[1]
+        num_cols = grid.shape[1]
         new_grid = np.vstack((grid,-np.ones((1,num_cols), dtype=int)))
         return new_grid
 
     def add_column_left(self,grid):
-        num_rows = self.grid.shape[0]
+        num_rows = grid.shape[0]
         new_grid = np.hstack((-np.ones((num_rows,1),dtype=int), grid))
         return new_grid
     
     def add_column_right(self,grid):
-        num_rows = self.grid.shape[0]
+        num_rows = grid.shape[0]
         new_grid = np.hstack((grid,-np.ones((num_rows,1), dtype=int)))
         return new_grid
     
