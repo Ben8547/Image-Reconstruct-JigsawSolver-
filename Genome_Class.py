@@ -49,9 +49,6 @@ class Genome:
         self.initial_anneal()
         for generation in range(self.numberGenerations):
             self.chromosomes[:self.parentsPerGen] = self.n_most_fit(self.parentsPerGen)
-            if self.updates:
-                self.energy = self.total_energy_grid(self.chromosomes[0])
-                print(f'Energy after initial annealing: {self.energy}')
             self.chromosomes[self.parentsPerGen:] = None
             self.energy = self.total_energy_grid(self.chromosomes[0])
             if self.updates:

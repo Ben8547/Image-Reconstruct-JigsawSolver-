@@ -154,3 +154,4 @@ if __name__ == "__main__":
     print(compute_energy(file = "Inputs/"+"Squirrel_Puzzle.jpg", color=True, energyFunction = compatability))
     print(compute_energy("ReadMeImages/"+"pure_annealed_squirrel_rolls_only.jpg",True,compatability))
     print(compute_energy(file = "Outputs/"+"annealing-color.jpg", color=True, energyFunction = compatability))
+    print(compute_energy(file = "Outputs/"+"genome-color.jpg", color=True, energyFunction = compatability))

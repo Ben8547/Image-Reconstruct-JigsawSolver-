@@ -16,7 +16,7 @@ file = "Inputs/"+"Squirrel_Puzzle.jpg"
 compatability = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y))  # energy function
 
 #simulation = generate_simGrid_from_file(file, color=Color, energy_function=compatability, grid_size=(8,8), T0=10., Tf=0.5, geometric_decay_rate=0.9999)
-simulation = generate_genome_from_file(file, color=Color,populationSize=10, numberGenerations=1, parentsPerGeneration=2, energy_function=compatability, grid_size=(8,8), T0=10., Tf=0.5, geometric_decay_rate=0.999, updates=True)
+simulation = generate_genome_from_file(file, color=Color,populationSize=20, numberGenerations=10, parentsPerGeneration=6, energy_function=compatability, grid_size=(8,8), T0=10., Tf=0.5, geometric_decay_rate=0.999, updates=True)
 
 print(f"Initial Energy: {simulation.energy}")
 
@@ -28,7 +28,7 @@ print(f"Final energy {simulation.energy}")
 
 restored_page = genome_reconstruct(simulation, color=Color)
 
-save_genome_output("Outputs/"+"annealing-color.jpg", simulation)
+save_genome_output("Outputs/"+"genome-color.jpg", simulation)
 
 plt.imshow(restored_page)
 plt.show()
