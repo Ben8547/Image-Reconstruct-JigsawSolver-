@@ -36,3 +36,8 @@ Running the pure annealing algorithm with single and subarray swaps at 0.67 and 
   <img src="https://github.com/Ben8547/Image-Reconstruct-JigsawSolver-/blob/main/ReadMeImages/pure_annealed_0.999999.jpg" width="300"/>
   <figcaption><em>Figure 6: Result of simulated annealing with very slow geometric scaling. The final energy was 7948.</em></figcaption>
 </figure>
+
+<figure>
+  <img src="https://github.com/Ben8547/Image-Reconstruct-JigsawSolver-/blob/main/ReadMeImages/pure-genome-color-10gens-100population.jpg" width="300"/>
+  <figcaption><em>Figure 7: Result of genetic algorithm with 10 generations of 100 individuals per generation. The final energy was ____.</em></figcaption>
+</figure>
