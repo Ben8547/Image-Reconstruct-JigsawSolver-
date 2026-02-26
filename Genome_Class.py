@@ -143,9 +143,9 @@ class Genome:
         else: # no adjacencies
             grid[0,0] = np.random.choice(parent1.ravel())
 
-        used_tiles = [None, grid[0,0]] # add the used tile to the list - this cannot be added again
-        unused_tiles = np.array([i for i in range(self.grid_shape[0]*self.grid_shape[1])],dtype=object) # this one specifically is an array because we need to use a mask on it later
-        unused_tiles[grid[0,0]] = None
+        used_tiles = {grid[0,0]} # add the used tile to the list - this cannot be added again
+        unused_tiles = {i for i in range(self.grid_shape[0]*self.grid_shape[1])}
+        unused_tiles.remove(grid[0,0])
         num_used_tiles = 1
 
         while num_used_tiles < self.grid_shape[0]*self.grid_shape[1]:
@@ -156,12 +156,12 @@ class Genome:
                 dual_adjacent_in_child = []
                 for i, element in enumerate(grid.ravel()):
                     # i is the index of the raveled array; element is the integer representing the tile
-                    m = i // current_shape[1] # row index of element
-                    n = i % current_shape[1] # column index of element
                     if element in parent_adjacencies:
+                        m = i // current_shape[1] # row index of element
+                        n = i % current_shape[1] # column index of element
                         open = self.check_open_side(grid, m, n, current_shape)
                         repetative_neighbors_dict = parent_adjacencies_lookup[element] # should return a dictionary with the parental repeated neighbors on each side listed
-                        if any( ( (repetative_neighbors_dict[d] not in used_tiles) and ( open[d] != False ) ) for d in self.directions ): # check that the intended neighbor has not already been place in the child; recall that None is in the list of used tiles so we get True if there is no ajacency
+                        if any( ( ((repetative_neighbors_dict[d] is not None) and (repetative_neighbors_dict[d] not in used_tiles)) and ( open[d] == True ) ) for d in self.directions ): # check that the intended neighbor has not already been place in the child; recall that None is in the list of used tiles so we get True if there is no ajacency
                             dual_adjacent_in_child.append(i) # this will be a list of all of the elements in the child that have repeated adjacencies in the parents that also have open sides in the grid
                         else: # then the partner of this tile is used already - there is no reason to consider either or them in future loops
                             parent_adjacencies.remove(element) # no reason to consider this element again on future loops
@@ -175,16 +175,18 @@ class Genome:
                     repetative_neighbors_dict = parent_adjacencies_lookup[tile]
                     valid_directions = []
                     for direction in self.directions:
-                        if (repetative_neighbors_dict[direction] != None) and self.check_open_side(grid, m,n,current_shape)[direction]: # requires the element to be open in that direction and for it to actully have a valid neighbor
+                        if (repetative_neighbors_dict[direction] != None) and (self.check_open_side(grid, m,n,current_shape)[direction]) and (repetative_neighbors_dict[direction] in unused_tiles): # requires the element to be open in that direction and for it to actully have a valid neighbor
                             valid_directions.append(direction)
                     direction = np.random.choice(valid_directions) # choose a random valid direction
 
                     if np.random.random() < self.mutation_probability: # random mutation
-                        placement = np.random.choice(unused_tiles[unused_tiles != None])
+                        placement = np.random.choice(list(unused_tiles))
+                        #assert placement not in used_tiles, "duplication1" # debug
                     else:
                         placement = repetative_neighbors_dict[direction]
+                        #assert placement not in used_tiles, "duplication2" # dubug
                     # place the tile in the chosen direction
-                    grid, num_used_tiles = self.place_tile(grid,direction,placement,used_tiles, unused_tiles, current_shape, num_used_tiles, m, n)
+                    grid, num_used_tiles= self.place_tile(grid,direction,placement,used_tiles, unused_tiles, current_shape, num_used_tiles, m, n)
                     
                 else: # there are no dual adjacencies present in the child
                     place_random = True
@@ -206,7 +208,7 @@ class Genome:
                         if any_open:
                             valid_elements.append(i)
 
-                # Now check if any of the valid_tiles have any unused best_buddies
+                # Now check if any of the valid tiles have any unused best-buddies
                 buddied = dict()
                 for i in valid_elements:
                     m = i // current_shape[1] # row index of element
@@ -214,9 +216,9 @@ class Genome:
                     open = self.check_open_side(grid, m, n, current_shape)
                     element = grid[m,n]
                     for d in {0,1,2,3}:
-                        if element in self.best_buddies[d].keys():
-                            if self.best_buddies[d][element] in unused_tiles:
-                                if open[d]:
+                        if element in self.best_buddies[d].keys(): # element has a best beddy in direciton d
+                            if self.best_buddies[d][element] in unused_tiles: # that buddy is not currently in use
+                                if open[d]: # element is open on side d
                                     buddied[element] = ((m,n),d,self.best_buddies[d][element]) # store location in the grid, direction and index of the buddy
                 
                 if buddied: # passes if buddied is non-empty
@@ -227,9 +229,11 @@ class Genome:
                         placement = buddied[element][2]
                         direction = buddied[element][1]
                         m, n = buddied[element][0]
+                        #assert placement not in used_tiles, "duplication3"# debug
                     else:
-                        unused_tile_pure = unused_tiles[unused_tiles != None]
+                        unused_tile_pure = list(unused_tiles)
                         placement = np.random.choice(unused_tile_pure)
+                        #assert placement not in used_tiles, "duplication4" # debug
                 else:
                     element_index = np.random.choice(valid_elements) # choose one of the valid elements to add on to
                     m = element_index // current_shape[1]
@@ -244,7 +248,7 @@ class Genome:
                     direction = np.random.choice(valid_directions) # choose once of the valid directions at random.
 
                     # get a random sample of unused tiles
-                    unused_tile_pure = unused_tiles[unused_tiles != None]
+                    unused_tile_pure = list(unused_tiles)
                     num_sample = np.min([60, len(unused_tile_pure)]) # by doing this random sampling, it ensures if the most compatable one it not the true fit, we have a chance of still getting the true fit
                     samples = np.random.choice(unused_tile_pure,num_sample,replace=False).astype(int)
                     compat = self.cached_energies[element*np.ones_like(samples,dtype=int), samples, direction]
@@ -253,13 +257,18 @@ class Genome:
 
                     if np.random.random() < self.mutation_probability: # random mutation
                         placement = np.random.choice(unused_tile_pure)
+                        #assert placement not in used_tiles, "duplication5" # debug
                     else:
                         placement = max_compatability
-
+                        #assert placement not in used_tiles, "duplication6" # debug
+                
+                #prev_unused = np.copy(unused_tiles) # debug
                 grid, num_used_tiles = self.place_tile(grid,direction,placement,used_tiles, unused_tiles, current_shape, num_used_tiles, m, n)
+                #assert placement in prev_unused and placement not in unused_tiles, "mismatch" # debug
 
-        #assert -1 not in grid, "Child contains unfilled tiles" # debug
-        #assert len(np.unique(grid)) == self.grid_shape[0]*self.grid_shape[1], "Duplicate or missing tiles" # dubug
+        print(grid) # debug
+        assert len(np.unique(grid)) == self.grid_shape[0]*self.grid_shape[1], "Duplicate or missing tiles" # dubug
+        assert -1 not in grid, "Child contains unfilled tiles" # debug
 
         return grid
     
@@ -270,30 +279,30 @@ class Genome:
                 m += 1 # adding on the top, pushes the other indicies up
             grid[m-1,n] =  placement # pace the tile in approprate direction
             num_used_tiles += 1
-            used_tiles.append(grid[m-1,n]) # add the used tile to the list
-            unused_tiles[grid[m-1,n]] = None
+            used_tiles.add(grid[m-1,n]) # add the used tile to the list
+            unused_tiles.remove(grid[m-1,n])
         elif direction == 2: #'bottom' 
             if m == current_shape[0]-1: # the tile in child is already at the bottom
                 grid = self.add_row_below(grid)
             grid[m+1,n] = placement # pace the tile in approprate direction
             num_used_tiles += 1
-            used_tiles.append(grid[m+1,n]) # add the used tile to the list
-            unused_tiles[grid[m+1,n]] = None
+            used_tiles.add(grid[m+1,n]) # add the used tile to the list
+            unused_tiles.remove(grid[m+1,n])
         elif direction == 1: #'left'
             if n == 0: # the tile in child is already at the top
                 grid = self.add_column_left(grid)
                 n += 1 # adding on the left pushes the other indicies up
             grid[m,n-1] = placement # pace the tile in approprate direction
             num_used_tiles += 1
-            used_tiles.append(grid[m,n-1]) # add the used tile to the list
-            unused_tiles[grid[m,n-1]] = None
+            used_tiles.add(grid[m,n-1]) # add the used tile to the list
+            unused_tiles.remove(grid[m,n-1])
         elif direction == 3:
             if n == current_shape[1]-1: # the tile in child is already at the top
                 grid = self.add_column_right(grid)
             grid[m,n+1] = placement # pace the tile in approprate direction
             num_used_tiles += 1
-            used_tiles.append(grid[m,n+1]) # add the used tile to the list
-            unused_tiles[grid[m,n+1]] = None
+            used_tiles.add(grid[m,n+1]) # add the used tile to the list
+            unused_tiles.remove(grid[m,n+1])
         return grid, num_used_tiles
     
     def add_row_above(self, grid):
