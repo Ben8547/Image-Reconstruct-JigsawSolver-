@@ -568,7 +568,7 @@ def genome_reconstruct(simulation : Genome, color = True):
     return resotred_page.astype(np.uint8) # jpg can only handle this resolution anyway
 
 def save_genome_output(filename, simulation : Genome, color = True, reconstruction = None):
-    if reconstruction == None:
-        resotred_page = genome_reconstruct(simulation,color)
+    if reconstruction is None:
+        reconstruction = genome_reconstruct(simulation,color)
 
-    cv2.imwrite(filename, resotred_page)
+    cv2.imwrite(filename, reconstruction)

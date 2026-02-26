@@ -9,9 +9,9 @@ import cv2
 Setup
 '''
 
-Color = True
+Color = False
 
-file = "Inputs/"+"test.jpg"
+file = "Inputs/"+"RainbowFlower_Puzzle.jpg"
 
 compatability = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y))  # energy function
 
@@ -28,7 +28,7 @@ print(f"Final energy {simulation.energy}")
 
 restored_page = genome_reconstruct(simulation, color=Color)
 
-save_genome_output("Outputs/"+"genome-color.jpg", simulation)
+save_genome_output("Outputs/"+"genome-color.jpg", simulation, Color, restored_page)
 
 plt.imshow(restored_page)
 plt.show()
