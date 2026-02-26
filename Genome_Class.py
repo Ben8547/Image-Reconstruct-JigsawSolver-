@@ -203,11 +203,10 @@ class Genome:
                 if buddied: # passes if buddied is non-empty
                     #instead we place a best-buddy
                     # first choose a random buddied tile
-                    element = np.random.choice(buddied.keys())
+                    element = np.random.choice(list(buddied.keys()))
                     placement = buddied[element][2]
-                    direction = buddied[element][0]
-                    m = buddied[element][0][0]
-                    n = buddied[element][0][1]
+                    direction = buddied[element][1]
+                    m, n = buddied[element][0]
                 else:
                     element_index = np.random.choice(valid_elements) # choose one of the valid elements to add on to
                     m = element_index // current_shape[1]
