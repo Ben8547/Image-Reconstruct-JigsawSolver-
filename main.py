@@ -9,14 +9,14 @@ import cv2
 Setup
 '''
 
-Color = False
+Color = True
 
-file = "Inputs/"+"test.jpg"
+file = "Inputs/"+"Squirrel_Puzzle.jpg"
 
 compatability = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y))  # energy function
 
 #simulation = generate_simGrid_from_file(file, color=Color, energy_function=compatability, grid_size=(8,8), T0=10., Tf=0.5, geometric_decay_rate=0.9999)
-simulation = generate_genome_from_file(file, color=Color,populationSize=100, numberGenerations=100, parentsPerGeneration=5, energy_function=compatability, grid_size=(8,8), T0=10., Tf=0.5, geometric_decay_rate=0.999, updates=True)
+simulation = generate_genome_from_file(file, color=Color,populationSize=100, numberGenerations=10, parentsPerGeneration=5, energy_function=compatability, grid_size=(8,8), T0=10., Tf=0.5, geometric_decay_rate=0.999, updates=True)
 
 print(f"Initial Energy: {simulation.energy}")
 
