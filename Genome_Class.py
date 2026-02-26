@@ -28,7 +28,7 @@ class Genome:
         self.parentsPerGen = parentsPerGeneration  # number of indeviduals to keep from the old generation at the begining of each new generation
         self.populationSize = populationSize # number of individuals in each generation
         self.chromosomes = np.empty(self.populationSize,dtype=object) # array of chromosome arrays; a chromosome is a permutation of the initial grid (a member of solution space  )
-        self.chromosomes[0:len(grid_list)] = grid_list # populate the chromosomes with any initial chromosomes
+        self.chromosomes[:len(grid_list)] = grid_list # populate the chromosomes with any initial chromosomes
         self.product = self.chromosomes[0] # at the end of simulation, this will contain the output
         self.energy = self.total_energy_grid(self.product)  # will contain the energy at the end of the simulation
 
@@ -42,9 +42,17 @@ class Genome:
         self.directions = {0,1,2,3}
 
     def run_simulation(self):
+        '''Note that you must have more more than seld.parentsPerGen items in self.chromosomes in order for this function to run properly'''
+        if len([chromosome for chromosome in self.chromosomes if chromosome is not None]) < self.parentsPerGen:
+            self.chromosomes[:self.populationSize] = self.generate_initial_samples(self.populationSize)
+            #raise ValueError("Not enough grids in self.chromosomes")
         self.initial_anneal()
         for generation in range(self.numberGenerations):
-            self.chromosomes = self.n_most_fit(self.parentsPerGen)
+            self.chromosomes[:self.parentsPerGen] = self.n_most_fit(self.parentsPerGen)
+            if self.updates:
+                self.energy = self.total_energy_grid(self.chromosomes[0])
+                print(f'Energy after initial annealing: {self.energy}')
+            self.chromosomes[self.parentsPerGen:] = None
             self.energy = self.total_energy_grid(self.chromosomes[0])
             if self.updates:
                 print(f"Best starting energy of generation {generation} is {self.energy}")
@@ -53,16 +61,19 @@ class Genome:
                 self.chromosomes[self.parentsPerGen + i] = self.generate_child(parent1=parents[0],parent2=parents[1])
 
         self.n_most_fit(1) # run this just to order the chromosome
-        self.chromosomes[1:] = np.empty(shape=self.populationSize-1,dtype=object)
+        self.chromosomes[1:] = None #np.empty(shape=self.populationSize-1,dtype=object)
         self.initial_anneal() # the annealing won't disrupt a fully formed image, but if we are missing a few tile, the annealing might be able to fix it
         self.energy = self.total_energy_grid(self.chromosomes[0])
         self.product = self.chromosomes[0]
+
+    def generate_initial_samples(self, n:int):
+        return [np.random.permutation(self.chromosomes[0]) for _ in range(n)]
 
     def initial_anneal(self):
         ''' The genome class will perform well if matches have already been found, but our current algorithm is not great at finding said matches. Thus,
          We run annealing on the seed grids before the genetic algorithm in order to find these initial pairings; ideally there are repeats between parents '''
         for i in range(self.populationSize):
-            if self.chromosomes[i] != None:
+            if self.chromosomes[i] is not None:
                 annealed_chromosome = simulation_grid(self.chromosomes[i],self.tile_data,self.cached_energies,self.T0, self.Tf,self.cooling_rate)
                 annealed_chromosome.anneal()
                 self.chromosomes[i] = annealed_chromosome.simGrid
@@ -85,7 +96,7 @@ class Genome:
         
         list_of_fitnesses = []
         for i in range(self.populationSize):
-            if self.chromosomes[i] == None:
+            if self.chromosomes[i] is None:
                 list_of_fitnesses.append(np.inf) # highest energy, worst fitness
             else:
                 list_of_fitnesses.append(self.total_energy_grid(self.chromosomes[i]))
@@ -94,7 +105,7 @@ class Genome:
 
         return self.chromosomes[:n] # return the first n items of the list; will fail if n > length of chromosomes hence the earlier error message
     
-    def generate_child(self,parent1, parent2):
+    def generate_child(self, parent1, parent2):
         grid = -np.ones((1,1),dtype=int) # begin with an empty 1x1 array
         '''seed the child with the first tile.'''
         parent_adjacencies_lookup, parent_adjacencies = self.search_parents_for_same_adjacencies(parent1, parent2)
@@ -178,8 +189,8 @@ class Genome:
                 # get a random sample of unused tiles
                 unused_tile_pure = unused_tiles[unused_tiles != None]
                 num_sample = np.min([20, len(unused_tile_pure)]) # by doing this random sampling, it ensures if the most compatable one it not the true fit, we have a chance of still getting the true fit
-                samples = np.random.choice(unused_tile_pure,num_sample,replace=False)
-                compat = self.cached_energies[element*np.ones_like(samples), samples, direction]
+                samples = np.random.choice(unused_tile_pure,num_sample,replace=False).astype(int)
+                compat = self.cached_energies[element*np.ones_like(samples,dtype=int), samples, direction]
                 max_compatability = samples[np.argmax(compat)]
                 # add the chosen neighbor to the child
 
@@ -366,7 +377,7 @@ class Genome:
 #------------------------------------------
 #
 
-def generate_genome_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(8,8), color=True, energy_function = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y)), T0=10., Tf=0.5, geometric_decay_rate=0.9999, updates=False) -> simulation_grid:
+def generate_genome_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(8,8), color=True, energy_function = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y)), T0=10., Tf=0.5, geometric_decay_rate=0.9999, updates=False, numberGenerations:int = 100, parentsPerGeneration:int = 4, populationSize:int = 1000) -> simulation_grid:
     """
     Create a simulation_grid object directly from an image file.
 
@@ -457,7 +468,7 @@ def generate_genome_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(
     print("cached tile energies")
     
 
-    return Genome([grid],tiles,cache_energies,numberGenerations=100,parentsPerGeneration=4,populationSize=1000,T0=T0, Tf=Tf, geometric_decay_rate=geometric_decay_rate,updates=updates)
+    return Genome([grid],tiles,cache_energies,numberGenerations,parentsPerGeneration,populationSize,T0=T0, Tf=Tf, geometric_decay_rate=geometric_decay_rate,updates=updates)
 
 
 def genome_reconstruct(simulation : Genome, color = True):
@@ -487,6 +498,6 @@ def genome_reconstruct(simulation : Genome, color = True):
 
 def save_genome_output(filename, simulation : Genome, color = True, reconstruction = None):
     if reconstruction == None:
-        resotred_page = reconstruct(simulation,color)
+        resotred_page = genome_reconstruct(simulation,color)
 
     cv2.imwrite(filename, resotred_page)
