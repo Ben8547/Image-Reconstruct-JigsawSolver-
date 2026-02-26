@@ -48,13 +48,32 @@ class Genome:
         best_buddies = {d:dict() for d in self.directions} # this should require less memory than storing in an array since we need only add data if it is relavant rather than initializing an entire nxn array
         for d in {0,1}: # we need oly do half of the directions because best-buddies will be symmetrical across directions so we need only identify one of the pair
             for i in range(self.grid_shape[0]*self.grid_shape[1]): # iterate through tile indicies
-                canidate_bb = np.argmax(self.cached_energies[i,:,d])
-                if i == np.argmax(self.cached_energies[canidate_bb,:,(d+2)%4]): # reciprocity
+                canidate_bb = np.argmin(self.cached_energies[i,:,d])
+                if i == np.argmin(self.cached_energies[canidate_bb,:,(d+2)%4]): # reciprocity
                     best_buddies[d][i] = canidate_bb # only creates the dictionary entry if it is needed
                     best_buddies[(d+2)%4][canidate_bb] = i
         return best_buddies
-
+    
     def run_simulation(self):
+        '''Note that you must have more more than seld.parentsPerGen items in self.chromosomes in order for this function to run properly'''
+        if len([chromosome for chromosome in self.chromosomes if chromosome is not None]) < self.parentsPerGen:
+            self.chromosomes[:self.populationSize] = self.generate_initial_samples(self.populationSize)
+            #raise ValueError("Not enough grids in self.chromosomes")
+        for generation in range(self.numberGenerations):
+            self.chromosomes[:self.parentsPerGen] = self.n_most_fit(self.parentsPerGen)
+            self.chromosomes[self.parentsPerGen:] = None
+            self.energy = self.total_energy_grid(self.chromosomes[0])
+            if self.updates:
+                print(f"Best starting energy of generation {generation} is {self.energy}")
+            for i in range(self.populationSize - self.parentsPerGen):
+                parents  = np.random.choice(self.chromosomes[:self.parentsPerGen],2,replace=False)
+                self.chromosomes[self.parentsPerGen + i] = self.generate_child(parent1=parents[0],parent2=parents[1])
+
+        self.n_most_fit(1) # run this just to order the chromosome
+        self.energy = self.total_energy_grid(self.chromosomes[0])
+        self.product = self.chromosomes[0]
+
+    def run_simulation_with_annealing(self):
         '''Note that you must have more more than seld.parentsPerGen items in self.chromosomes in order for this function to run properly'''
         if len([chromosome for chromosome in self.chromosomes if chromosome is not None]) < self.parentsPerGen:
             self.chromosomes[:self.populationSize] = self.generate_initial_samples(self.populationSize)
@@ -71,10 +90,10 @@ class Genome:
                 self.chromosomes[self.parentsPerGen + i] = self.generate_child(parent1=parents[0],parent2=parents[1])
 
         self.n_most_fit(1) # run this just to order the chromosome
-        #self.chromosomes[1:] = None #np.empty(shape=self.populationSize-1,dtype=object)
-        #self.initial_anneal() # the annealing won't disrupt a fully formed image, but if we are missing a few tile, the annealing might be able to fix it
-        self.energy = self.total_energy_grid(self.chromosomes[4])
-        self.product = self.chromosomes[4]
+        self.chromosomes[1:] = None #np.empty(shape=self.populationSize-1,dtype=object)
+        self.initial_anneal() # the annealing won't disrupt a fully formed image, but if we are missing a few tile, the annealing might be able to fix it
+        self.energy = self.total_energy_grid(self.chromosomes[0])
+        self.product = self.chromosomes[0]
 
     def generate_initial_samples(self, n:int):
         return [np.random.permutation(self.chromosomes[0]) for _ in range(n)]
@@ -201,12 +220,16 @@ class Genome:
                                     buddied[element] = ((m,n),d,self.best_buddies[d][element]) # store location in the grid, direction and index of the buddy
                 
                 if buddied: # passes if buddied is non-empty
-                    #instead we place a best-buddy
-                    # first choose a random buddied tile
-                    element = np.random.choice(list(buddied.keys()))
-                    placement = buddied[element][2]
-                    direction = buddied[element][1]
-                    m, n = buddied[element][0]
+                    if (np.random.random()>=self.mutation_probability):
+                        #instead we place a best-buddy
+                        # first choose a random buddied tile
+                        element = np.random.choice(list(buddied.keys()))
+                        placement = buddied[element][2]
+                        direction = buddied[element][1]
+                        m, n = buddied[element][0]
+                    else:
+                        unused_tile_pure = unused_tiles[unused_tiles != None]
+                        placement = np.random.choice(unused_tile_pure)
                 else:
                     element_index = np.random.choice(valid_elements) # choose one of the valid elements to add on to
                     m = element_index // current_shape[1]
@@ -225,7 +248,7 @@ class Genome:
                     num_sample = np.min([60, len(unused_tile_pure)]) # by doing this random sampling, it ensures if the most compatable one it not the true fit, we have a chance of still getting the true fit
                     samples = np.random.choice(unused_tile_pure,num_sample,replace=False).astype(int)
                     compat = self.cached_energies[element*np.ones_like(samples,dtype=int), samples, direction]
-                    max_compatability = samples[np.argmax(compat)]
+                    max_compatability = samples[np.argmin(compat)]
                     # add the chosen neighbor to the child
 
                     if np.random.random() < self.mutation_probability: # random mutation
@@ -234,6 +257,9 @@ class Genome:
                         placement = max_compatability
 
                 grid, num_used_tiles = self.place_tile(grid,direction,placement,used_tiles, unused_tiles, current_shape, num_used_tiles, m, n)
+
+        #assert -1 not in grid, "Child contains unfilled tiles" # debug
+        #assert len(np.unique(grid)) == self.grid_shape[0]*self.grid_shape[1], "Duplicate or missing tiles" # dubug
 
         return grid
     
