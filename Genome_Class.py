@@ -41,6 +41,19 @@ class Genome:
 
         self.directions = {0,1,2,3}
 
+        self.best_buddies = self.compute_best_buddies()
+
+    def compute_best_buddies(self):
+        # Brute force - not ideal but we on;y do this once so it doesn't matter much.
+        best_buddies = {d:dict() for d in self.directions} # this should require less memory than storing in an array since we need only add data if it is relavant rather than initializing an entire nxn array
+        for d in {0,1}: # we need oly do half of the directions because best-buddies will be symmetrical across directions so we need only identify one of the pair
+            for i in range(self.grid_shape[0]*self.grid_shape[1]): # iterate through tile indicies
+                canidate_bb = np.argmax(self.cached_energies[i,:,d])
+                if i == np.argmax(self.cached_energies[canidate_bb,:,(d+2)%4]): # reciprocity
+                    best_buddies[d][i] = canidate_bb # only creates the dictionary entry if it is needed
+                    best_buddies[(d+2)%4][canidate_bb] = i
+        return best_buddies
+
     def run_simulation(self):
         '''Note that you must have more more than seld.parentsPerGen items in self.chromosomes in order for this function to run properly'''
         if len([chromosome for chromosome in self.chromosomes if chromosome is not None]) < self.parentsPerGen:
