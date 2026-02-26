@@ -475,6 +475,6 @@ def annealing_reconstruct(simulation : simulation_grid, color = True):
 
 def save_annealing_output(filename, simulation : simulation_grid, color = True, reconstruction = None):
     if reconstruction == None:
-        resotred_page = reconstruct(simulation,color)
+        resotred_page = annealing_reconstruct(simulation,color)
 
     cv2.imwrite(filename, resotred_page)
