@@ -174,8 +174,9 @@ class Genome:
                     # now find its common neighbours in the parents, and choose one at random
                     repetative_neighbors_dict = parent_adjacencies_lookup[tile]
                     valid_directions = []
+                    open = self.check_open_side(grid, m,n,current_shape)
                     for direction in self.directions:
-                        if (repetative_neighbors_dict[direction] != None) and (self.check_open_side(grid, m,n,current_shape)[direction]) and (repetative_neighbors_dict[direction] in unused_tiles): # requires the element to be open in that direction and for it to actully have a valid neighbor
+                        if (repetative_neighbors_dict[direction] != None) and (open[direction]) and (repetative_neighbors_dict[direction] in unused_tiles): # requires the element to be open in that direction and for it to actully have a valid neighbor
                             valid_directions.append(direction)
                     direction = np.random.choice(valid_directions) # choose a random valid direction
 
@@ -222,14 +223,15 @@ class Genome:
                                     buddied[element] = ((m,n),d,self.best_buddies[d][element]) # store location in the grid, direction and index of the buddy
                 
                 if buddied: # passes if buddied is non-empty
+                    # first choose a random buddied tile
+                    element = np.random.choice(list(buddied.keys()))
+                    placement = buddied[element][2]
+                    direction = buddied[element][1]
+                    m, n = buddied[element][0]
                     if (np.random.random()>=self.mutation_probability):
                         #instead we place a best-buddy
-                        # first choose a random buddied tile
-                        element = np.random.choice(list(buddied.keys()))
-                        placement = buddied[element][2]
-                        direction = buddied[element][1]
-                        m, n = buddied[element][0]
                         #assert placement not in used_tiles, "duplication3"# debug
+                        pass
                     else:
                         unused_tile_pure = list(unused_tiles)
                         placement = np.random.choice(unused_tile_pure)
@@ -266,9 +268,9 @@ class Genome:
                 grid, num_used_tiles = self.place_tile(grid,direction,placement,used_tiles, unused_tiles, current_shape, num_used_tiles, m, n)
                 #assert placement in prev_unused and placement not in unused_tiles, "mismatch" # debug
 
-        print(grid) # debug
-        assert len(np.unique(grid)) == self.grid_shape[0]*self.grid_shape[1], "Duplicate or missing tiles" # dubug
-        assert -1 not in grid, "Child contains unfilled tiles" # debug
+        #print(grid) # debug
+        #assert len(np.unique(grid)) == self.grid_shape[0]*self.grid_shape[1], "Duplicate or missing tiles" # dubug
+        #assert -1 not in grid, "Child contains unfilled tiles" # debug
 
         return grid
     
