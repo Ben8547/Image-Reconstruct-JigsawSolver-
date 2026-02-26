@@ -71,10 +71,10 @@ class Genome:
                 self.chromosomes[self.parentsPerGen + i] = self.generate_child(parent1=parents[0],parent2=parents[1])
 
         self.n_most_fit(1) # run this just to order the chromosome
-        self.chromosomes[1:] = None #np.empty(shape=self.populationSize-1,dtype=object)
-        self.initial_anneal() # the annealing won't disrupt a fully formed image, but if we are missing a few tile, the annealing might be able to fix it
-        self.energy = self.total_energy_grid(self.chromosomes[0])
-        self.product = self.chromosomes[0]
+        #self.chromosomes[1:] = None #np.empty(shape=self.populationSize-1,dtype=object)
+        #self.initial_anneal() # the annealing won't disrupt a fully formed image, but if we are missing a few tile, the annealing might be able to fix it
+        self.energy = self.total_energy_grid(self.chromosomes[4])
+        self.product = self.chromosomes[4]
 
     def generate_initial_samples(self, n:int):
         return [np.random.permutation(self.chromosomes[0]) for _ in range(n)]
@@ -174,6 +174,7 @@ class Genome:
                 place_random = True
 
             if place_random:
+                '''First try to place best buddies, if this is not possible, then place a random tile'''
                 # find elements that have open side:
                 valid_elements = []
                 for i, element in enumerate(grid.ravel()):
@@ -185,29 +186,53 @@ class Genome:
                         any_open = any(open[j] for j in self.directions)
                         if any_open:
                             valid_elements.append(i)
-                element_index = np.random.choice(valid_elements) # choose one of the valid elements to add on to
-                m = element_index // current_shape[1]
-                n = element_index % current_shape[1]
-                element = grid[m,n]
-                # now find the valid neighbors of that element
-                valid_directions = []
-                for direction in self.directions:
-                        if self.check_open_side(grid, m, n, current_shape)[direction]: # requires the element to be open in that direction and for it to actully have a valid neighbor
-                            valid_directions.append(direction)
-                direction = np.random.choice(valid_directions) # choose once of the valid directions at random.
 
-                # get a random sample of unused tiles
-                unused_tile_pure = unused_tiles[unused_tiles != None]
-                num_sample = np.min([20, len(unused_tile_pure)]) # by doing this random sampling, it ensures if the most compatable one it not the true fit, we have a chance of still getting the true fit
-                samples = np.random.choice(unused_tile_pure,num_sample,replace=False).astype(int)
-                compat = self.cached_energies[element*np.ones_like(samples,dtype=int), samples, direction]
-                max_compatability = samples[np.argmax(compat)]
-                # add the chosen neighbor to the child
-
-                if np.random.random() < self.mutation_probability: # random mutation
-                    placement = np.random.choice(unused_tile_pure)
+                # Now check if any of the valid_tiles have any unused best_buddies
+                buddied = dict()
+                for i in valid_elements:
+                    m = i // current_shape[1] # row index of element
+                    n = i % current_shape[1] # column index of element
+                    open = self.check_open_side(grid, m, n, current_shape)
+                    element = grid[m,n]
+                    for d in {0,1,2,3}:
+                        if element in self.best_buddies[d].keys():
+                            if self.best_buddies[d][element] in unused_tiles:
+                                if open[d]:
+                                    buddied[element] = ((m,n),d,self.best_buddies[d][element]) # store location in the grid, direction and index of the buddy
+                
+                if buddied: # passes if buddied is non-empty
+                    #instead we place a best-buddy
+                    # first choose a random buddied tile
+                    element = np.random.choice(buddied.keys())
+                    placement = buddied[element][2]
+                    direction = buddied[element][0]
+                    m = buddied[element][0][0]
+                    n = buddied[element][0][1]
                 else:
-                    placement = max_compatability
+                    element_index = np.random.choice(valid_elements) # choose one of the valid elements to add on to
+                    m = element_index // current_shape[1]
+                    n = element_index % current_shape[1]
+                    element = grid[m,n]
+                    # now find the valid neighbors of that element
+                    valid_directions = []
+                    for direction in self.directions:
+                            if self.check_open_side(grid, m, n, current_shape)[direction]: # requires the element to be open in that direction and for it to actully have a valid neighbor
+                                valid_directions.append(direction)
+
+                    direction = np.random.choice(valid_directions) # choose once of the valid directions at random.
+
+                    # get a random sample of unused tiles
+                    unused_tile_pure = unused_tiles[unused_tiles != None]
+                    num_sample = np.min([60, len(unused_tile_pure)]) # by doing this random sampling, it ensures if the most compatable one it not the true fit, we have a chance of still getting the true fit
+                    samples = np.random.choice(unused_tile_pure,num_sample,replace=False).astype(int)
+                    compat = self.cached_energies[element*np.ones_like(samples,dtype=int), samples, direction]
+                    max_compatability = samples[np.argmax(compat)]
+                    # add the chosen neighbor to the child
+
+                    if np.random.random() < self.mutation_probability: # random mutation
+                        placement = np.random.choice(unused_tile_pure)
+                    else:
+                        placement = max_compatability
 
                 grid, num_used_tiles = self.place_tile(grid,direction,placement,used_tiles, unused_tiles, current_shape, num_used_tiles, m, n)
 
