@@ -1,8 +1,63 @@
-## Usage Guide
+# Usage Guide
 
-# Development Notes
+## Project Purpose:
+This project implements simulated annealing and genetic algorithm approaches to reconstructing a shuffled image grid (often reffered to a jigsaw puzzle in the literature) by minimizing an energy function defined over tile boundary compatibilities. Further in development I would like to add additional functionality.
 
-My take on the jigsaw problem. **This is project is currently a work in progress**.
+## Quick Start Example
+### Annealing
+```python
+from Annealing_Class import generate_simGrid_from_file, save_annealing_output
+
+# Create simulation object from image
+sim = generate_simGrid_from_file(
+    filename="Inputs/Squirrel_Puzzle.jpg",
+    grid_size=(8, 8),
+    color=True,
+    T0=10.0,
+    Tf=0.5,
+    geometric_decay_rate=0.9999
+)
+
+# Run annealing
+sim.anneal()
+
+# Save reconstructed image
+save_annealing_output("Outputs/reconstructed.jpg", sim, color=True)
+```
+### Genetic Algorithm
+```python
+from Genome_Class import generate_genome_from_file, save_genome_output, genome_reconstruct
+
+# Create Genome object from image
+genome = generate_genome_from_file(
+    filename="Inputs/Squirrel_Puzzle.jpg",
+    grid_size=(8, 8),
+    color=True,
+    numberGenerations=100,
+    parentsPerGeneration=4,
+    populationSize=200,
+    T0=10.0,
+    Tf=0.5,
+    geometric_decay_rate=0.9999,
+    updates=True
+)
+
+# Run genetic algorithm
+genome.run_simulation()
+
+# Optional: run hybrid version with annealing refinement
+# genome.run_simulation_with_annealing()
+
+# Reconstruct final image
+reconstructed = genome_reconstruct(genome, color=True)
+
+# Save output
+save_genome_output("Outputs/genetic_reconstruction.jpg", genome, color=True)
+```
+
+# Development Notes and Example Outputs
+
+My take on the jigsaw problem.
 
 The annealing algorithm has the capability to make 4 different moves. With 50% probability, it will swap two tiles (95% chance to choose a swap based on ideal compatibility within a random sample of tile), with 25% probability it will perform a roll operation on the representation matrix and with 25% probability it will swap two rectangular regions. To determine the efficacy of each of these operations consider the following example outputs each generated from the same puzzle image with an energy of 11512. The original squirrel has an energy of 7404. Each run presented below was completed with a geometric cooling schedule with initial temperature of 10 and a relaxation rate of 0.9999 and run until the temperature was 0.5 or less.
 
