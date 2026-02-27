@@ -1,4 +1,4 @@
-# Usage Guide
+# Documentation
 
 ## Project Purpose:
 This project implements simulated annealing and genetic algorithm approaches to reconstructing a shuffled image grid (often reffered to a jigsaw puzzle in the literature) by minimizing an energy function defined over tile boundary compatibilities. Further in development I would like to add additional functionality.
