@@ -3,7 +3,7 @@
 ## Project Purpose:
 This project implements simulated annealing and genetic algorithm approaches to reconstructing a shuffled image grid (often reffered to a jigsaw puzzle in the literature) by minimizing an energy function defined over tile boundary compatibilities. Further in development I would like to add additional functionality.
 
-## Quick Start Example
+## Preliminary Examples
 ### Annealing
 ```python
 from Annealing_Class import generate_simGrid_from_file, save_annealing_output
