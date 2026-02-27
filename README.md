@@ -1,3 +1,7 @@
+## Usage Guide
+
+# Development Notes
+
 My take on the jigsaw problem. **This is project is currently a work in progress**.
 
 The annealing algorithm has the capability to make 4 different moves. With 50% probability, it will swap two tiles (95% chance to choose a swap based on ideal compatibility within a random sample of tile), with 25% probability it will perform a roll operation on the representation matrix and with 25% probability it will swap two rectangular regions. To determine the efficacy of each of these operations consider the following example outputs each generated from the same puzzle image with an energy of 11512. The original squirrel has an energy of 7404. Each run presented below was completed with a geometric cooling schedule with initial temperature of 10 and a relaxation rate of 0.9999 and run until the temperature was 0.5 or less.
