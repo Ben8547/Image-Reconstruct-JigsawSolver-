@@ -55,6 +55,123 @@ reconstructed = genome_reconstruct(genome, color=True)
 save_genome_output("Outputs/genetic_reconstruction.jpg", genome, color=True)
 ```
 
+# Annealing Documentation
+
+## ```Annealing_Class.simulation_grid```
+Main simulation object used to perform annealing.
+# Attributes
+
+```simGrid : ndarray```
+Current tile arrangement (indices referencing ```tile_data```).
+
+```grid_shape : tuple[int, int]```
+The dimensions of ```simGrid```.
+
+```tile_data : ndarray(dtype=object)```
+Array of dictionaries storing tile boundary slices and full tile image.
+
+``` cached_energies : ndarray ```
+Precomputed compatibility energies between tile edges.
+
+```energy : float```
+Current total energy of ```simGrid```.
+
+``` T0 : float ```
+Initial simulation tempurature.
+
+```Tf : float```
+Final temperature; the simulation halts at this tempurature.
+
+```geometric_rate : float```
+Tempurature schudle definiging constant. The class uses ```T(k) = geometric_rate**k * T0 ``` to determine the tempurature of iteration ```k```.
+
+### Notes
+* All pairwise boundary energies are cached in a 3D array of shape: ```(num_tiles, num_tiles, 4)```
+* Direction indexing is given by:
+    * ```0```$\to$ top
+    * ```1```$\to$ left
+    * ```2```$\to$ bottom
+    * ```3```$\to$ right
+
+## ```Annealing_Class.simulation_grid.anneal```
+```simulation_grid.anneal()```
+Run the simulated annealing process by Iteratively performing:
+<ol>
+    <li>A single Markov step</li>
+    <li>Energy revaluation</li>
+    <li>Metropolis acceptance rule</li>
+    <li>Temperature update</li>
+</ol>
+The temperature is updated using geometric cooling ``'simulation_grid.cooling_schedule_geometric``` and the algorithm terminates when ```T <= Tf```.
+
+## ```Annealing_Class.simulation_grid.cooling_schedule_geometric```
+```cooling_schedule_geometric(T_0, rate, k)```
+Geometric cooling schedule. Computes ``` T(k) = T0 * rate**k ```
+Thus the program reaches ```Tf``` when $k = \frac{\ln\left(\frac{T_f}{T_0}\right)}{\ln(r)}$ and hence scale relatively moderately with the rate. When the rate is near $1$, linear approximation yields that for $r = 1-\varepsilon$ $k\approx \frac{\ln\left(\frac{T_0}{T_f}\right)}{\varepsilon}$. Hence changing the ration of tempuratures has a negligiable impact on the completion time of the algorithm compared to logarithmic cooling.
+
+# Parameters
+```T_0 : float```
+Initial temperature.
+
+```rate : float```
+Multiplicative decay factor.
+
+```k : int```
+Iteration index.
+
+# Returns
+```float```
+Updated temperature.
+
+## ```Annealing_Class.simulation_grid.cooling_schedule_optimal```
+```cooling_schedule_optimal(T_0, k)```
+A logarithmic cooling schedule which is proven to lead to convergence of the Markov chain given some additional assumptions by Hajek in 1987.
+Tempurature is computed according to ```T(k) = T0 / log(k)```. We find that the number of iterations required to complete the simulations is $k = e^{T_0/T_f}$ and thus depends strongly on the ratio of the tempuratures. Since we require $T_f\to0$ for convergence it is clear that this algorithm would take infinite time. The geometric cooling schedule is preffered by this program for this reason and this function is not used by ```simulation_grid.anneal()```.
+
+
+## ```Annealing_Class.generate_simGrid_from_file```
+```python
+generate_simGrid_from_file(
+    filename = "Inputs/Squirrel_Puzzle.jpg",
+    grid_size = (8,8),
+    color = True,
+    energy_function = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y)),
+    T0=10.,
+    Tf=0.5,
+    geometric_decay_rate = 0.9999
+) -> simulation_grid ```
+```
+Create a simulation_grid object directly from an image file. The image is partitioned into rectangular tiles. Boundary energies between every pair of tiles are precomputed and cached.
+
+### Parameters
+``` filename : str ```
+Path to input image file. I've only tested this with .jpg files.
+
+```grid_size : tuple[int, int]```
+Shape ```(rows, cols)``` specifying how many tiles the image is split into.
+
+```color : bool```
+If True, the image is processed in RGB. If False, the image is processed in grayscale.
+
+``` energy_function : callable ```
+Function used to compute compatibility between tile boundaries. It must be able accept two NumPy arrays and return a scalar energy value. Remember that this function will be minimized by the annealing process.
+
+``` T0 : float ```
+Initial annealing temperature.
+
+```Tf : float```
+Final annealing temperature - the algorithm halts when the process reaches this tempurature.
+
+```geometric_decay_rate : float```
+Geometric cooling multiplier (must be < 1 or else the program will never halt).
+
+### Returns
+```simulation_grid```
+An initialized annealing simulation object.
+
+## ```Annealing_Class.annealing_reconstruct```
+
+
 # Development Notes and Example Outputs
 
 My take on the jigsaw problem.
