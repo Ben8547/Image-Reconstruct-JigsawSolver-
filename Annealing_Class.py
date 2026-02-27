@@ -474,7 +474,7 @@ def annealing_reconstruct(simulation : simulation_grid, color = True):
     return resotred_page.astype(np.uint8) # jpg can only handle this resolution anyway
 
 def save_annealing_output(filename, simulation : simulation_grid, color = True, reconstruction = None):
-    if reconstruction == None:
-        resotred_page = annealing_reconstruct(simulation,color)
+    if reconstruction is None:
+        reconstruction = annealing_reconstruct(simulation,color)
 
-    cv2.imwrite(filename, resotred_page)
+    cv2.imwrite(filename, reconstruction)

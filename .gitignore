@@ -1,7 +1,4 @@
 images/
-papers/
+papers/*.pdf
 Downloader_shogakukan.py
-*.pdf
 python_tests/
-annealing-color.jpg
-direction_logic-too-complicated.txt
