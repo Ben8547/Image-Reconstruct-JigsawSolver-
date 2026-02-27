@@ -12,7 +12,7 @@
   - [generate_simGrid_from_file](#annealing_classgenerate_simgrid_from_file)
   - [annealing_reconstruct](#annealing_classannealing_reconstruct)
   - [save_annealing_output](#annealing_classsave_annealing_output)
-- [Genome Documentation](#genome-documentation)
+- [Genetic Algorithm Documentation](#genetic-algorithm-documentation)
   - [Genome](#genome_classgenome)
   - [run_simulation](#genome_classgenomerun_simulation)
   - [run_simulation_with_annealing](#genome_classgenomerun_simulation_with_annealing)
@@ -226,8 +226,144 @@ Determines whether image is RGB or grayscale.
 
 # Genetic Algorithm Documentation
 
+## ```Genome_Class.Genome```
+Main object implementing the genetic algorithm (with optional annealing refinement) for puzzle reconstruction. The genetic algorithm evolves a population of candidate grids by minimizing the same boundary-based energy function used in the annealing class. This is a functional implementation of the algorithm discussed by Sholomon et al. here: [https://doi.org/10.48550/arXiv.1711.06769](url).
 
+# Attributes
 
+```population : list[ndarray]```
+List of candidate grids (each grid is an index matrix referencing tile_data).
+
+```population_energies : list[float]```
+Energy value associated with each grid in the population.
+
+```tile_data : ndarray(dtype=object)```
+Array of dictionaries storing tile boundary slices and full tile image.
+
+```cached_energies : ndarray```
+Precomputed compatibility energies between tile edges.
+
+```grid_shape : tuple[int, int]```
+Shape of each chromosome grid.
+
+```numberGenerations : int```
+Total number of generations to evolve.
+
+```parentsPerGeneration : int```
+Number of lowest-energy individuals selected as parents.
+
+```populationSize : int```
+Total number of individuals in each generation.
+
+```T0, Tf, geometric_rate : float```
+Annealing parameters used if hybrid annealing refinement is enabled. See [Annealing Documentation](#annealing-documentation) for more information.
+
+```
+product : ndarray
+```
+Lowest-energy grid found during evolution.
+
+```energy : float```
+Energy of the best genome found at each iteration.
+
+```updates : bool```
+If True, prints generation progress and energy updates.
+
+## ```Genome_Class.Genome.run_simulation```
+```Genome.run_simulation()```
+Execute the genetic algorithm.
+
+Each generation performs:
+
+<ol>
+  <li>Energy evaluation of entire population</li> <li>Selection of top ```parentsPerGeneration``` individuals</li>
+  <li>Crossover to produce offspring</li> <li>Mutation to introduce variation</li>
+  <li>Population replacement</li>
+</ol>
+
+The algorithm halts after ```Genome.numberGenerations``` iterations and the individual with minimum energy across all generations is stored in: ```Genome.product```.
+
+## ```Genome_Class.Genome.run_simulation_with_annealing```
+
+```Genome.run_simulation_with_annealing()```
+This runs the same genetic algorithm as ```Genome.run_simulation``` except applies annealing to each of the initial parents in order to find initial tile-pairing. There is a final annealing phase for the lowest energy result. For the images I tested, this was slower than ```Genome.run_annealing()``` with no added benifit. It may be desireable for larger grids.
+
+## Genome_Class.generate_genome_from_file
+```python
+generate_genome_from_file(
+    filename="Inputs/Squirrel_Puzzle.jpg",
+    grid_size=(8,8),
+    color=True,
+    numberGenerations=100,
+    parentsPerGeneration=4,
+    populationSize=200,
+    T0=10.,
+    Tf=0.5,
+    geometric_decay_rate=0.9999,
+    updates=True
+) -> Genome
+```
+Create a ```Genome``` object directly from an image file. The image is partitioned into rectangular tiles.
+Boundary energies between every pair of tiles are precomputed and cached.
+
+# Parameters
+
+```filename : str```
+Path to input image file.
+
+```grid_size : tuple[int, int]```
+Shape ```(rows, cols)``` specifying how many tiles the image is split into.
+
+```color : bool```
+If True, image is processed in RGB. If False, image is processed in grayscale.
+
+```numberGenerations : int```
+Number of generations to evolve.
+
+```parentsPerGeneration : int```
+Number of energy-miniized individuals selected each generation.
+
+```populationSize : int```
+Total number of chromosome grids per generation.
+
+```T0, Tf, geometric_decay_rate : float```
+Annealing parameters used if hybrid mode is enabled. See [Annealing Documentation](#annealing-documentation) for more information.
+
+```updates : bool```
+Print progress updates during evolution.
+
+# Returns
+```Genome```
+Initialized genetic algorithm object.
+
+## ```Genome_Class.genome_reconstruct```
+```genome_reconstruct(genome, color=True)```
+Reconstruct the full image from the best genome configuration.
+
+# Parameters
+```genome : Genome```
+A ```Genome``` object.
+
+```color : bool```
+Determines whether image is RGB or grayscale.
+
+# Returns
+```ndarray```
+Reconstructed image as an ```uint8``` array.
+
+## ```Genome_Class.save_genome_output```
+```save_genome_output(filename, genome, color=True)```
+Save the reconstructed image to a file.
+
+# Parameters
+```filename : str```
+Output file path.
+
+```genome : Genome```
+Genome object.
+
+```color : bool```
+Determines whether image is RGB or grayscale.
 
 # Development Notes and Example Outputs
 
