@@ -104,10 +104,17 @@ Run the simulated annealing process by Iteratively performing:
 </ol>
 The temperature is updated using geometric cooling ``'simulation_grid.cooling_schedule_geometric``` and the algorithm terminates when ```T <= Tf```.
 
+The Markov step can make one of three perturbations to the grid:
+<ol>
+    <li>With probability $0.6\overline{3}$: Single-tile swaps biased towards tiles with high local energy.</li>
+    <li>With probability $0.0\overline{3}$: Random Single-tile swaps.</li>
+    <li>With probability $0.\overline{3}$: Subarray swaps.</li>
+</ol>
+
 ## ```Annealing_Class.simulation_grid.cooling_schedule_geometric```
 ```cooling_schedule_geometric(T_0, rate, k)```
 Geometric cooling schedule. Computes ``` T(k) = T0 * rate**k ```
-Thus the program reaches ```Tf``` when $k = \frac{\ln\left(\frac{T_f}{T_0}\right)}{\ln(r)}$ and hence scale relatively moderately with the rate. When the rate is near $1$, linear approximation yields that for $r = 1-\varepsilon$ $k\approx \frac{\ln\left(\frac{T_0}{T_f}\right)}{\varepsilon}$. Hence changing the ration of tempuratures has a negligiable impact on the completion time of the algorithm compared to logarithmic cooling.
+Thus the program reaches ```Tf``` when $k = \frac{\ln\left(\frac{T_f}{T_0}\right)}{\ln(r)}$ and hence scale relatively moderately with the rate. When the rate is near $1$, linear approximation yields that for $r = 1-\varepsilon$, $k\approx \frac{\ln\left(\frac{T_0}{T_f}\right)}{\varepsilon}$. Hence changing the ration of tempuratures has a negligiable impact on the completion time of the algorithm compared to logarithmic cooling.
 
 # Parameters
 ```T_0 : float```
@@ -170,6 +177,31 @@ Geometric cooling multiplier (must be < 1 or else the program will never halt).
 An initialized annealing simulation object.
 
 ## ```Annealing_Class.annealing_reconstruct```
+```annealing_reconstruct(simulation, color=True)```
+Reconstruct the full image from the current tile configuration.
+### Parameters
+```simulation : simulation_grid```
+Simulation object.
+
+```color : bool```
+Determines whether image is RGB or grayscale.
+
+### Returns
+```ndarray```
+Reconstructs the image as an ```uint8``` array.
+
+## ```Annealing_Class.save_annealing_output```
+```save_annealing_output(filename, simulation, color=True)```
+Save the reconstructed image to a file.
+### Parameters
+```filename : str```
+Output file path.
+
+```simulation : simulation_grid```
+Simulation object.
+
+```color : bool```
+Determines whether image is RGB or grayscale.
 
 
 # Development Notes and Example Outputs
