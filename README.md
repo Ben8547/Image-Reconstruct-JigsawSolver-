@@ -1,6 +1,27 @@
-# Documentation
+# Table of Contents
 
-## Project Purpose:
+- [Project Purpose](#project-purpose)
+- [Preliminary Examples](#preliminary-examples)
+  - [Annealing](#annealing)
+  - [Genetic Algorithm](#genetic-algorithm)
+- [Annealing Documentation](#annealing-documentation)
+  - [simulation_grid](#annealing_classsimulation_grid)
+  - [anneal](#annealing_classsimulation_gridanneal)
+  - [Cooling Schedule (Geometric)](#annealing_classsimulation_gridcooling_schedule_geometric)
+  - [Cooling Schedule (Optimal)](#annealing_classsimulation_gridcooling_schedule_optimal)
+  - [generate_simGrid_from_file](#annealing_classgenerate_simgrid_from_file)
+  - [annealing_reconstruct](#annealing_classannealing_reconstruct)
+  - [save_annealing_output](#annealing_classsave_annealing_output)
+- [Genome Documentation](#genome-documentation)
+  - [Genome](#genome_classgenome)
+  - [run_simulation](#genome_classgenomerun_simulation)
+  - [run_simulation_with_annealing](#genome_classgenomerun_simulation_with_annealing)
+  - [generate_genome_from_file](#genome_classgenerate_genome_from_file)
+  - [genome_reconstruct](#genome_classgenome_reconstruct)
+  - [save_genome_output](#genome_classsave_genome_output)
+- [Development Notes and Example Outputs](#development-notes-and-example-outputs)
+
+# Project Purpose:
 This project implements simulated annealing and genetic algorithm approaches to reconstructing a shuffled image grid (often reffered to a jigsaw puzzle in the literature) by minimizing an energy function defined over tile boundary compatibilities. Further in development I would like to add additional functionality.
 
 ## Preliminary Examples
@@ -202,6 +223,10 @@ Simulation object.
 
 ```color : bool```
 Determines whether image is RGB or grayscale.
+
+# Genetic Algorithm Documentation
+
+
 
 
 # Development Notes and Example Outputs
