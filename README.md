@@ -29,7 +29,7 @@ This project implements simulated annealing and genetic algorithm approaches to 
 
 ```cmd
 pip install numba, numpy, cv2
-``
+```
 
 ## Preliminary Examples
 ### Annealing
