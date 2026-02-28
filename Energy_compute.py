@@ -4,7 +4,7 @@ from time import time
 from numba import njit, prange
 from typing import Callable
 
-#@njit(parallel = True, fastmath=True)
+@njit(parallel = True, fastmath=True)
 def compatability(x,y):
     return np.mean(np.abs(x-y))
 
@@ -36,7 +36,7 @@ def compute_energy(file,color=True, energyFunction: Callable = compatability, pu
     return total_energy(grid,cached_energies)
 
 
-#@njit(fastmath=True, parallel=True) # this function takes the bulk of the time so hopefully numba can speed it up; The energy doesn't need to be perfect since it has such large magnitude anyway. Thus we enable fastmath.
+@njit(fastmath=True, parallel=True) # this function takes the bulk of the time so hopefully numba can speed it up; The energy doesn't need to be perfect since it has such large magnitude anyway. Thus we enable fastmath.
 def cache_energies_grayscale(array, columns, rows, num_tiles, energyFunction)->np.ndarray:
     
     gray_matrix = array
@@ -70,7 +70,7 @@ def cache_energies_grayscale(array, columns, rows, num_tiles, energyFunction)->n
     return cached_energies
 
 
-#@njit(fastmath=True, parallel=True) # this function takes the bulk of the time so hopefully numba can speed it up; The energy doesn't need to be perfect since it has such large magnitude anyway. Thus we enable fastmath.
+@njit(fastmath=True, parallel=True) # this function takes the bulk of the time so hopefully numba can speed it up; The energy doesn't need to be perfect since it has such large magnitude anyway. Thus we enable fastmath.
 def cache_energies_color(array, columns, rows, num_tiles, energyFunction)->np.ndarray:
     
     color_volume = array
@@ -135,11 +135,11 @@ if __name__ == "__main__":
     # Benchmarking
     #------
     start_time = time()
-    print(compute_energy(file = "Inputs/"+"Original_Nebula.jpg", color=True, energyFunction = compatability, puzzle_shape=(50,50)))
+    print(compute_energy(file = "Inputs/"+"Original_Nebula.jpg", color=True, energyFunction = compatability, puzzle_shape=(40,60)))
     end_time = time()
     print(f'completed in {end_time-start_time}')
 
     start_time = time()
-    print(compute_energy(file = "Inputs/"+"Original_Nebula.jpg", color=True, energyFunction = compatability, puzzle_shape=(50,50)))
+    print(compute_energy(file = "Inputs/"+"Original_Nebula.jpg", color=True, energyFunction = compatability, puzzle_shape=(40,60)))
     end_time = time()
     print(f'completed in {end_time-start_time}')

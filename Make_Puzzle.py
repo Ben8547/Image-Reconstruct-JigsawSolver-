@@ -35,4 +35,4 @@ def make_puzzle(file_in:str, file_out:str, rows = 8, columns=8):
     cv2.imwrite(file_out,gray_matrix)
 
 if __name__ == "__main__":
-    make_puzzle("Inputs/"+"Original_Nebula.jpg","Inputs/"+"Nebula_Puzzle.jpg",40,60)
+    make_puzzle("Inputs/"+"Original_Nebula.jpg","Inputs/"+"Nebula_Puzzle-small.jpg",20,30)
