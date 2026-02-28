@@ -24,10 +24,12 @@ def compute_energy(file,color=True, energyFunction: Callable = compatability, pu
         This outputs a 3 dimensional array: (hight, width, 3)
         We will need to store data differently taking this into account.
         '''
+
+        cached_energies = cache_energies_color(array,columns,rows, num_tiles, energyFunction)
     else:
         array = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
 
-    cached_energies = cache_energies(color,array,columns,rows, num_tiles, energyFunction)
+        cached_energies = cache_energies_grayscale(array,columns,rows, num_tiles, energyFunction)
 
     #Since we only did top and left, we can recover bottom and right since the matrix has the following property cache[i,j,0] = cache[j,i,2] and cache[i,j,1] = cache[j,i,3]
     # by only computing half of the directions in the loop we should halve the compute time of the loop
@@ -46,54 +48,27 @@ def compute_energy(file,color=True, energyFunction: Callable = compatability, pu
     return total_energy(grid,cached_energies)
 
 
-@njit(parallel = False, fastmath = True) # cannot paralellize because of numpy advanced indexing of the array
-def cache_energies(color, array, columns, rows, num_tiles, energyFunction):
-    '''
-    Now we disect each tile and save it's boarder vectors in a list of dictionaries.
-    The  dictionaries will contain labels "top", "bottom", "left", "right"
-    '''
-
-    if not color:
-        gray_matrix = array
-        width = gray_matrix.shape[1] # horizontal distance - should be the shoter of the two
-        length = gray_matrix.shape[0]
-        tile_width = width//columns
-        tile_length = length//rows
-
-        tiles = -np.ones(( num_tiles, 4, max(tile_length,tile_width)),dtype=np.float32)
-        ''' first index controlls which tile we are looking at. The next index indicates the side of the tile 0-3 and the final dimension contains the vector associated with each side with and leftover space being filled with -1s '''
-
-        for i in prange(num_tiles):
-            m, n = divmod(i,columns)
-            tiles[i,0,:tile_width] = gray_matrix[tile_length*m,tile_width*n:tile_width*(n+1)]
-            tiles[i,2,:tile_width] = gray_matrix[tile_length*(m+1)-1,tile_width*n:tile_width*(n+1)]
-            tiles[i,1,:tile_length] = gray_matrix[tile_length*m:tile_length*(m+1),tile_width*n]
-            tiles[i,3,:tile_length] = gray_matrix[tile_length*m:tile_length*(m+1),tile_width*(n+1)-1]
-
-        cached_energies = cache_energies_grayscale(num_tiles,energyFunction,tiles,tile_width,tile_length)
-                    
-    else:
-        color_volume = array
-        width = color_volume.shape[1] # horizontal distance - should be the shoter of the two
-        length = color_volume.shape[0]
-        tile_width = width//columns
-        tile_length = length//rows
-
-        tiles = -np.ones(( num_tiles, 4, max(tile_length,tile_width,3) ),dtype=np.float32)
-
-        for i in prange(num_tiles):
-            m, n = divmod(i,columns)
-            tiles[i,0,:tile_width,:] = color_volume[tile_length*m,tile_width*n:tile_width*(n+1),:]
-            tiles[i,2,:tile_width,:] = color_volume[tile_length*(m+1)-1,tile_width*n:tile_width*(n+1),:]
-            tiles[i,1,:tile_length,:] = color_volume[tile_length*m:tile_length*(m+1),tile_width*n]
-            tiles[i,3,:tile_length,:] = color_volume[tile_length*m:tile_length*(m+1),tile_width*(n+1)-1,:]
-
-    return cached_energies
-
-
 @njit(fastmath=True, parallel=True) # this function takes the bulk of the time so hopefully numba can speed it up; The energy doesn't need to be perfect since it has such large magnitude anyway. Thus we enable fastmath.
-def cache_energies_grayscale(num_tiles:int,energyFunction:Callable[[np.ndarray,np.ndarray],np.float32],tiles:np.ndarray,tile_width:int, tile_length:int)->np.ndarray:
+def cache_energies_grayscale(array, columns, rows, num_tiles, energyFunction)->np.ndarray:
+    
+    gray_matrix = array
+    width = gray_matrix.shape[1] # horizontal distance - should be the shoter of the two
+    length = gray_matrix.shape[0]
+    tile_width = width//columns
+    tile_length = length//rows
+
+    tiles = -np.ones(( num_tiles, 4, max(tile_length,tile_width)),dtype=np.float32)
+    ''' first index controlls which tile we are looking at. The next index indicates the side of the tile 0-3 and the final dimension contains the vector associated with each side with and leftover space being filled with -1s '''
+
+    for i in range(num_tiles): # do not parallelize due to advanced indexing
+        m, n = divmod(i,columns)
+        tiles[i,0,:tile_width] = gray_matrix[tile_length*m,tile_width*n:tile_width*(n+1)]
+        tiles[i,2,:tile_width] = gray_matrix[tile_length*(m+1)-1,tile_width*n:tile_width*(n+1)]
+        tiles[i,1,:tile_length] = gray_matrix[tile_length*m:tile_length*(m+1),tile_width*n]
+        tiles[i,3,:tile_length] = gray_matrix[tile_length*m:tile_length*(m+1),tile_width*(n+1)-1]
+    
     cached_energies = np.zeros((num_tiles,num_tiles,4),dtype=np.float32)
+    
 
     for i in prange(num_tiles): # run the first loop in parallel - innner loops apparently cannot be parallelized
         for j in range(num_tiles):
@@ -110,7 +85,23 @@ def cache_energies_grayscale(num_tiles:int,energyFunction:Callable[[np.ndarray,n
 
 
 @njit(fastmath=True, parallel=True) # this function takes the bulk of the time so hopefully numba can speed it up; The energy doesn't need to be perfect since it has such large magnitude anyway. Thus we enable fastmath.
-def cache_energies_color(num_tiles:int,energyFunction:Callable[[np.ndarray,np.ndarray],np.float32],tiles:np.ndarray,tile_width:int, tile_length:int)->np.ndarray:
+def cache_energies_color(array, columns, rows, num_tiles, energyFunction)->np.ndarray:
+    
+    color_volume = array
+    width = color_volume.shape[1] # horizontal distance - should be the shoter of the two
+    length = color_volume.shape[0]
+    tile_width = width//columns
+    tile_length = length//rows
+
+    tiles = -np.ones(( num_tiles, 4, max(tile_length,tile_width), 3 ),dtype=np.float32)
+
+    for i in range(num_tiles): # do not parallelize due to advanced indexing
+        m, n = divmod(i,columns)
+        tiles[i,0,:tile_width,:] = color_volume[tile_length*m,tile_width*n:tile_width*(n+1),:]
+        tiles[i,2,:tile_width,:] = color_volume[tile_length*(m+1)-1,tile_width*n:tile_width*(n+1),:]
+        tiles[i,1,:tile_length,:] = color_volume[tile_length*m:tile_length*(m+1),tile_width*n]
+        tiles[i,3,:tile_length,:] = color_volume[tile_length*m:tile_length*(m+1),tile_width*(n+1)-1,:]
+
     cached_energies = np.zeros((num_tiles,num_tiles,4),dtype=np.float32)
 
     for i in prange(num_tiles): # run the first loop in parallel - innner loops apparently cannot be parallelized
@@ -151,7 +142,7 @@ if __name__ == "__main__":
     from numpy.linalg import norm
     #compatability = lambda x,y: norm(x-y)/len(x)
 
-    print(compute_energy(file = "Inputs/"+"test.jpg", color=False, energyFunction = compatability,puzzle_shape=(8,8)))
+    print(compute_energy(file = "Inputs/"+"test.jpg", color=True, energyFunction = compatability,puzzle_shape=(8,8)))
     print(compute_energy(file = "Inputs/"+"Original_Squirrel.jpg", color=True, energyFunction = compatability,puzzle_shape=(8,8)))
     print(compute_energy(file = "Inputs/"+"Original_RainbowFlower.jpg", color=True, energyFunction = compatability,puzzle_shape=(8,8)))
     #print(compute_energy(file = "Inputs/"+"Nebula_Puzzle.jpg", color=True, energyFunction = compatability,puzzle_shape=(40,60)))
