@@ -434,3 +434,7 @@ Running the pure annealing algorithm with single and subarray swaps at 0.67 and 
 	* No NUMBA: 293.23735904693604 seconds
 	* NUMBA with compile time: 231.85261917114258 seconds
 	* NUMBA without compile time: 215.7313826084137 seconds
+* For a 50x50 puzzle (Original_Nebula.jpg) we get:
+	* No NUMBA: 156.52668356895447 seconds
+	* NUMBA with compile time: 133.72849583625793 seconds
+	* NUMBA without compile time: 134.13951468467712 seconds
