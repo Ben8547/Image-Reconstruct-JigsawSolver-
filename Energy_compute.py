@@ -31,19 +31,7 @@ def compute_energy(file,color=True, energyFunction: Callable = compatability, pu
 
         cached_energies = cache_energies_grayscale(array,columns,rows, num_tiles, energyFunction)
 
-    #Since we only did top and left, we can recover bottom and right since the matrix has the following property cache[i,j,0] = cache[j,i,2] and cache[i,j,1] = cache[j,i,3]
-    # by only computing half of the directions in the loop we should halve the compute time of the loop
-
-    X, Y = np.meshgrid(np.arange(0,num_tiles,1),np.arange(0,num_tiles,1))
-
-    cached_energies[X,Y,2] = cached_energies[Y,X,0]
-
-    cached_energies[X,Y,3] = cached_energies[Y,X,1]
-
-
     grid = np.arange(0,num_tiles,1,dtype=int).reshape((rows,columns))
-
-    #print("cached") # debug
     
     return total_energy(grid,cached_energies)
 
@@ -74,12 +62,11 @@ def cache_energies_grayscale(array, columns, rows, num_tiles, energyFunction)->n
         for j in range(num_tiles):
             for d_i in range(2):
                 if i == j: # diagonal elements are set to infinite since they can never happen anyway
-                    cached_energies[i,j,d_i] = np.inf
+                    cached_energies[i,j,0] = np.inf
+                    cached_energies[i,j,1] = np.inf
                 else:
-                    if d_i == 0:
-                        cached_energies[i,j,d_i] = energyFunction( tiles[i, d_i, :tile_width], tiles[j, (d_i + 2) % 4, :tile_width] ) # cutting off at tile_width shouldn't matter since they subtract out anyway, but in the case of some other energy function this is a good practice to do anyway
-                    else: # d_i == 1
-                        cached_energies[i,j,d_i] = energyFunction( tiles[i, d_i, :tile_length], tiles[j, (d_i + 2) % 4, :tile_length] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
+                    cached_energies[i,j,0] = energyFunction( tiles[i, 0, :tile_width], tiles[j, 2, :tile_width] ) # cutting off at tile_width shouldn't matter since they subtract out anyway, but in the case of some other energy function this is a good practice to do anyway
+                    cached_energies[i,j,1] = energyFunction( tiles[i, 1, :tile_length], tiles[j, 3, :tile_length] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
 
     return cached_energies
 
@@ -93,27 +80,25 @@ def cache_energies_color(array, columns, rows, num_tiles, energyFunction)->np.nd
     tile_width = width//columns
     tile_length = length//rows
 
-    tiles = -np.ones(( num_tiles, 4, max(tile_length,tile_width), 3 ),dtype=np.float32)
+    tiles = np.empty(( num_tiles, 2, max(tile_length,tile_width), 3 ),dtype=np.float32) # we only need two of the directions; saves 50% memory over the previous version
 
     for i in range(num_tiles): # do not parallelize due to advanced indexing
         m, n = divmod(i,columns)
         tiles[i,0,:tile_width,:] = color_volume[tile_length*m,tile_width*n:tile_width*(n+1),:]
         tiles[i,2,:tile_width,:] = color_volume[tile_length*(m+1)-1,tile_width*n:tile_width*(n+1),:]
-        tiles[i,1,:tile_length,:] = color_volume[tile_length*m:tile_length*(m+1),tile_width*n]
+        tiles[i,1,:tile_length,:] = color_volume[tile_length*m:tile_length*(m+1),tile_width*n, :]
         tiles[i,3,:tile_length,:] = color_volume[tile_length*m:tile_length*(m+1),tile_width*(n+1)-1,:]
 
     cached_energies = np.zeros((num_tiles,num_tiles,4),dtype=np.float32)
 
     for i in prange(num_tiles): # run the first loop in parallel - innner loops apparently cannot be parallelized
         for j in range(num_tiles):
-            for d_i in range(2):
                 if i == j: # diagonal elements are set to infinite since they can never happen anyway
-                    cached_energies[i,j,d_i] = np.inf
+                    cached_energies[i,j,0] = np.inf
+                    cached_energies[i,j,1] = np.inf
                 else:
-                    if d_i == 0:
-                        cached_energies[i,j,d_i] = energyFunction( tiles[i, d_i, :tile_width], tiles[j, (d_i + 2) % 4, :tile_width,:] ) # cutting off at tile_width shouldn't matter since they subtract out anyway, but in the case of some other energy function this is a good practice to do anyway
-                    else: # d_i == 1
-                        cached_energies[i,j,d_i] = energyFunction( tiles[i, d_i, :tile_length], tiles[j, (d_i + 2) % 4, :tile_length,:] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
+                    cached_energies[i,j,0] = energyFunction( tiles[i, 0, :tile_width], tiles[j, 2, :tile_width,:] ) # cutting off at tile_width shouldn't matter since they subtract out anyway, but in the case of some other energy function this is a good practice to do anyway
+                    cached_energies[i,j,1] = energyFunction( tiles[i, 1, :tile_length], tiles[j, 3, :tile_length,:] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
 
     return cached_energies
 

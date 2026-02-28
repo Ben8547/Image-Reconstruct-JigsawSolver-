@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import cv2
 from time import sleep
 from Annealing_Class import simulation_grid
+from numba import prange, njit
 
 #
 #
@@ -458,6 +459,8 @@ def generate_genome_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(
     color : boolean : Determines if the image is read in color or black and white
     """
 
+    num_tiles = grid_size[0]*grid_size[1] # total number of tiles in the image
+
     if color:
         color_volume = cv2.imread(filename, cv2.IMREAD_COLOR)# we need these to be int16 so that there is not wrapping of the unsinged integers when we compute energies. This should allow proper energy computation; commented out the int16 part because I ordered the terms in the mean
         #print(type(color_volume[0,0,0])) # it is indeed stored as uint8
@@ -470,24 +473,24 @@ def generate_genome_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(
 
     '''Chop up the image'''
 
-    tiles = []
+    tiles = [] # this only contains the 
 
     if not color:
         width = gray_matrix.shape[1] # horizontal distance - should be the shoter of the two
         length = gray_matrix.shape[0]
         tile_width = width//grid_size[1]
         tile_length = length//grid_size[0]
-        #print(tile_length)
+        
+        tile_sides = -np.ones( ( num_tiles, 4, max(tile_length,tile_width) ), dtype=np.float32)
 
         for i in range(grid_size[0]):
             for j in range(grid_size[1]):
-                tiles.append({
-                    0: gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)], 
-                    2: gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
-                    1: gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j],
-                    3: gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1],
-                    "entire": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)]# need this last one to reconstruct the array later
-                })
+                tiles.append(gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)]) # need this one to reconstruct the array later
+                index = i * grid_size[0] + j
+                tile_sides[index, 0, :tile_width] = gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)]
+                tile_sides[index, 2, :tile_width] = gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)]
+                tile_sides[index, 1, :tile_length] = gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j]
+                tile_sides[index, 3, :tile_length] = gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1]
         del gray_matrix # no need to store a large matrix any longer than we need it. We only need the boarders anyway
     else:
         width = color_volume.shape[1] # horizontal distance - should be the shoter of the two
@@ -495,34 +498,25 @@ def generate_genome_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(
         tile_width = width//grid_size[1]
         tile_length = length//grid_size[0]
 
+        tile_sides = -np.ones( ( num_tiles, 4, max(tile_length,tile_width), 3 ), dtype=np.float32)
+
         for i in range(grid_size[0]):
             for j in range(grid_size[1]):
-                tiles.append({
-                    0: color_volume[tile_length*i,tile_width*j:tile_width*(j+1),:], # top
-                    2: color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1),:], # bottom
-                    1: color_volume[tile_length*i:tile_length*(i+1),tile_width*j,:], # left
-                    3: color_volume[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1,:], # right
-                    "entire": color_volume[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] # need this last one to reconstruct the array later
-                }) # we use the wierd ordering so that we can use modular arithmatic to send top to bottom and left to right easily (and the reverse)
+                tiles.append(gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)]) # need this one to reconstruct the array later
+                index = i * grid_size[0] + j
+                tile_sides[index, 0, :tile_width, :] = color_volume[tile_length*i,tile_width*j:tile_width*(j+1), :]
+                tile_sides[index, 2, :tile_width, :] = color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1), :]
+                tile_sides[index, 1, :tile_length, :] = color_volume[tile_length*i:tile_length*(i+1),tile_width*j, :]
+                tile_sides[index, 3, :tile_length, :] = color_volume[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1, :]
 
         del color_volume # no need to store a large matrix any longer than we need it. We only need the boarders anyway
 
-    num_tiles = grid_size[0]*grid_size[1] # total number of tiles in the image
+        cached_energies = cache_energies_color()
 
     grid = np.arange(0,num_tiles,1,dtype=int).reshape((grid_size[0],grid_size[1])) # the representation of the image; using uint8 because nothing is negative or bigger than 255 and thus using any other integer system would be wasteful
 
 
-    tiles = np.array(tiles, dtype=object) # apparently you can make a list of dictionaries into an array - this makes indexing later much easier - this is a change from the previous version
-
-    cache_energies = np.zeros((num_tiles,num_tiles,4),dtype=float)
-
-    for i in range(num_tiles):
-        for j in range(num_tiles):
-            for d_i in range(2):
-                if i == j: # diagonal elements are set to infinite since they can never happen anyway
-                    cache_energies[i,j,d_i] = np.inf
-                else:
-                    cache_energies[i,j,d_i] = energy_function( tiles[i][d_i], tiles[j][(d_i + 2) % 4] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
+    tiles = np.array(tiles, dtype=object) # apparently you can make a list of arrays into an array - this makes indexing later much easier - this is a change from the previous version
 
     #Since we only did top and left, we can recover bottom and right since the matrix has the following property cache[i,j,0] = cache[j,i,2] and cache[i,j,1] = cache[j,i,3]
     # by only computing half of the directions in the loop we should halve the compute time of the loop
@@ -541,6 +535,40 @@ def generate_genome_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(
     
 
     return Genome([grid],tiles,cache_energies,numberGenerations,parentsPerGeneration,populationSize,T0=T0, Tf=Tf, geometric_decay_rate=geometric_decay_rate,updates=updates)
+
+
+@njit(parallel = True, fastmath = True)
+def cache_energies_color(num_tiles, tile_sides, energyFunction, tile_length,tile_width):
+
+    cached_energies = np.zeros((num_tiles,num_tiles,4),dtype=np.float32)
+
+    for i in prange(num_tiles): # run the first loop in parallel - innner loops apparently cannot be parallelized
+        for j in range(num_tiles):
+                if i == j: # diagonal elements are set to infinite since they can never happen anyway
+                    cached_energies[i,j,0] = np.inf
+                    cached_energies[i,j,1] = np.inf
+                else:
+                    cached_energies[i,j,0] = energyFunction( tile_sides[i, 0, :tile_width], tile_sides[j, 2, :tile_width,:] ) # cutting off at tile_width shouldn't matter since they subtract out anyway, but in the case of some other energy function this is a good practice to do anyway
+                    cached_energies[i,j,1] = energyFunction( tile_sides[i, 1, :tile_length], tile_sides[j, 3, :tile_length,:] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
+
+    return cached_energies
+
+
+@njit(parallel = True, fastmath = True)
+def cache_energies_grayscale(num_tiles, tile_sides, energyFunction, tile_length,tile_width):
+
+    cached_energies = np.zeros((num_tiles,num_tiles,4),dtype=np.float32)
+
+    for i in prange(num_tiles): # run the first loop in parallel - innner loops apparently cannot be parallelized
+        for j in range(num_tiles):
+                if i == j: # diagonal elements are set to infinite since they can never happen anyway
+                    cached_energies[i,j,0] = np.inf
+                    cached_energies[i,j,1] = np.inf
+                else:
+                    cached_energies[i,j,0] = energyFunction( tile_sides[i, 0, :tile_width], tile_sides[j, 2, :tile_width] ) # cutting off at tile_width shouldn't matter since they subtract out anyway, but in the case of some other energy function this is a good practice to do anyway
+                    cached_energies[i,j,1] = energyFunction( tile_sides[i, 1, :tile_length], tile_sides[j, 3, :tile_length] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
+
+    return cached_energies
 
 
 def genome_reconstruct(simulation : Genome, color = True):
