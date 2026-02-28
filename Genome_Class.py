@@ -508,7 +508,7 @@ def generate_genome_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(
 
     num_tiles = grid_size[0]*grid_size[1] # total number of tiles in the image
 
-    grid = np.arange(0,num_tiles,1,dtype=np.uint8).reshape((grid_size[0],grid_size[1])) # the representation of the image; using uint8 because nothing is negative or bigger than 255 and thus using any other integer system would be wasteful
+    grid = np.arange(0,num_tiles,1,dtype=int).reshape((grid_size[0],grid_size[1])) # the representation of the image; using uint8 because nothing is negative or bigger than 255 and thus using any other integer system would be wasteful
 
 
     tiles = np.array(tiles, dtype=object) # apparently you can make a list of dictionaries into an array - this makes indexing later much easier - this is a change from the previous version
@@ -526,7 +526,7 @@ def generate_genome_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(
     #Since we only did top and left, we can recover bottom and right since the matrix has the following property cache[i,j,0] = cache[j,i,2] and cache[i,j,1] = cache[j,i,3]
     # by only computing half of the directions in the loop we should halve the compute time of the loop
 
-    X, Y = np.meshgrid(np.arange(0,num_tiles,1,dtype=np.uint8),np.arange(0,num_tiles,1,dtype=np.uint8))
+    X, Y = np.meshgrid(np.arange(0,num_tiles,1,dtype=int),np.arange(0,num_tiles,1,dtype=int))
 
     cache_energies[X,Y,2] = cache_energies[Y,X,0]
 
@@ -565,7 +565,7 @@ def genome_reconstruct(simulation : Genome, color = True):
                 dict_index = simulation.product[i,j]
                 resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = simulation.tile_data[dict_index]["entire"]
 
-    return resotred_page.astype(np.uint8) # jpg can only handle this resolution anyway
+    return resotred_page.astype(int) # jpg can only handle this resolution anyway
 
 def save_genome_output(filename, simulation : Genome, color = True, reconstruction = None):
     if reconstruction is None:

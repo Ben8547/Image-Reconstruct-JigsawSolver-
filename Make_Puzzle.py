@@ -29,7 +29,7 @@ def make_puzzle(file_in:str, file_out:str, rows = 8, columns=8):
 
     for i in range(rows):
         for j in range(columns):
-            gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] = tiles[i*8 + j]
+            gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] = tiles[i*rows + j]
 
 
     cv2.imwrite(file_out,gray_matrix)

@@ -158,9 +158,9 @@ class simulation_grid:
             Failed = False
             if random() < 0.95: # with 95% chance sample some pieces and choose the one with the highest local energy to swap with another point with high local energy
                 # sample 20 pieces from the puzzle and compute their local energies
-                sample_cols = randint(0,self.grid_shape[1],(20,1),dtype=np.uint8) # we don't turn off replacement, but the chance of duplicates is relatively low so it won't matter
-                sample_rows = randint(0,self.grid_shape[0],(20,1),dtype=np.uint8)
-                samples = np.hstack([sample_rows,sample_cols],dtype=np.uint8)
+                sample_cols = randint(0,self.grid_shape[1],(20,1),dtype=int) # we don't turn off replacement, but the chance of duplicates is relatively low so it won't matter
+                sample_rows = randint(0,self.grid_shape[0],(20,1),dtype=int)
+                samples = np.hstack([sample_rows,sample_cols],dtype=int)
                 worst_sample = samples[np.argmax(self.local_energy(self.simGrid,samples))] # Gets sample with the highest local energy; this return an index of a 2d array
                 worst_sample = (worst_sample[0],worst_sample[1]) # it is important that this is a tuple, if it is a list or an array, then numpy indexing treats it as two separate indicies to be looked up
                 # now we choose a direction and find its most optimal position in that direction and swap with the tile current in that position.
@@ -267,8 +267,8 @@ class simulation_grid:
             """# choose a tile to be the upper left of the rectangle:
             samples = (0,0)
             while samples == (0,0): # don't allow the top-left corner of the array since then we are unable to pick a complementary array
-                sample_cols = randint(0,self.grid_shape[1],dtype=np.uint8)
-                sample_rows = randint(0,self.grid_shape[0],dtype=np.uint8)
+                sample_cols = randint(0,self.grid_shape[1],dtype=int)
+                sample_rows = randint(0,self.grid_shape[0],dtype=int)
                 samples = (sample_rows,sample_cols) # this is the point that we will
             d = choice([0,1]) # choose a direction; if top is chosen the partner subarray will be to the top of the subarray; similar for left; we need not consider bottom and right since we can make these swaps by choosing the would be partner tile as the starting tile as the the directions are reversed
             if samples[0]==0: # then d can only be left; I would like to write these as branchless but I can't find a concise way at the moment
@@ -396,7 +396,7 @@ def generate_simGrid_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=
 
     num_tiles = grid_size[0]*grid_size[1] # total number of tiles in the image
 
-    grid = np.arange(0,num_tiles,1,dtype=np.uint8).reshape((grid_size[0],grid_size[1])) # the representation of the image; using uint8 because nothing is negative or bigger than 255 and thus using any other integer system would be wasteful
+    grid = np.arange(0,num_tiles,1,dtype=int).reshape((grid_size[0],grid_size[1])) # the representation of the image; using uint8 because nothing is negative or bigger than 255 and thus using any other integer system would be wasteful
 
 
     tiles = np.array(tiles, dtype=object) # apparently you can make a list of dictionaries into an array - this makes indexing later much easier - this is a change from the previous version
@@ -432,7 +432,7 @@ def generate_simGrid_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=
     #Since we only did top and left, we can recover bottom and right since the matrix has the following property cache[i,j,0] = cache[j,i,2] and cache[i,j,1] = cache[j,i,3]
     # by only computing half of the directions in the loop we should halve the compute time of the loop
 
-    X, Y = np.meshgrid(np.arange(0,num_tiles,1,dtype=np.uint8),np.arange(0,num_tiles,1,dtype=np.uint8))
+    X, Y = np.meshgrid(np.arange(0,num_tiles,1,dtype=int),np.arange(0,num_tiles,1,dtype=int))
 
     cache_energies[X,Y,2] = cache_energies[Y,X,0]
 
@@ -471,7 +471,7 @@ def annealing_reconstruct(simulation : simulation_grid, color = True):
                 dict_index = simulation.simGrid[i,j]
                 resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = simulation.tile_data[dict_index]["entire"]
 
-    return resotred_page.astype(np.uint8) # jpg can only handle this resolution anyway
+    return resotred_page.astype(int) # jpg can only handle this resolution anyway
 
 def save_annealing_output(filename, simulation : simulation_grid, color = True, reconstruction = None):
     if reconstruction is None:

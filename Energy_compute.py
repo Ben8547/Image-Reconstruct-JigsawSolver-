@@ -11,7 +11,7 @@ def compute_energy(file,color=True, energyFunction=lambda x,y: lambda x,y: np.me
     columns = puzzle_shape[1]
     num_tiles = rows*columns
 
-    grid = np.arange(0,num_tiles,1,dtype=np.uint8).reshape((rows,columns))
+    grid = np.arange(0,num_tiles,1,dtype=int).reshape((rows,columns))
 
     '''Load in the test file (permanent)'''
     if color:
@@ -67,14 +67,14 @@ def compute_energy(file,color=True, energyFunction=lambda x,y: lambda x,y: np.me
 
         del color_volume # no need to store a large matrix any longer than we need it. We only need the boarders anyway
 
-    grid = np.arange(0,num_tiles,1,dtype=np.uint8).reshape((rows,columns))
+    grid = np.arange(0,num_tiles,1,dtype=int).reshape((rows,columns))
 
-    cached_energies = cache_energies(num_tiles,energyFunction,tiles)
+    cached_energies = cache_energies_old(num_tiles,energyFunction,tiles)
 
     #Since we only did top and left, we can recover bottom and right since the matrix has the following property cache[i,j,0] = cache[j,i,2] and cache[i,j,1] = cache[j,i,3]
     # by only computing half of the directions in the loop we should halve the compute time of the loop
 
-    X, Y = np.meshgrid(np.arange(0,num_tiles,1,dtype=np.uint8),np.arange(0,num_tiles,1,dtype=np.uint8))
+    X, Y = np.meshgrid(np.arange(0,num_tiles,1,dtype=int),np.arange(0,num_tiles,1,dtype=int))
 
     cached_energies[X,Y,2] = cached_energies[Y,X,0]
 
@@ -88,15 +88,20 @@ def cache_energies(num_tiles:int,energyFunction:callable,tiles:list[dict]):
     cached_energies = wp.zeros((num_tiles,num_tiles,4),dtype=float)
 
     for d in range(2):
-        wp.launch(compute_single_energy,dim=num_tiles**2,inputs=[cached_energies,num_tiles,d])
+        wp.launch(compute_single_energy, dim=num_tiles*num_tiles, inputs=[cached_energies,num_tiles,d])
 
-    return cached_energies.numpy() # convert back to numpy array
+    cached_energies = cached_energies.numpy() # convert back to numpy array
+
+    diagonal = np.arange(0,num_tiles,1,dtype=int)
+    cached_energies[diagonal,diagonal,:] = np.inf # set the self-interactions to infinite energy
+
+    return cached_energies
 
 @wp.kernel
-def compute_single_energy(out, num_tiles,d):
+def compute_single_energy(out:wp.array, num_tiles:int,d:int)->wp.array:
     tid = wp.tid()
     i, j = divmod(tid,num_tiles)
-    out[i,j,d] = 
+    out[i,j,d] = 1 # unfinished
 
 def cache_energies_old(num_tiles:int,energyFunction:callable,tiles:list[dict])->np.ndarray:
     cached_energies = np.zeros((num_tiles,num_tiles,4),dtype=float)
@@ -106,7 +111,7 @@ def cache_energies_old(num_tiles:int,energyFunction:callable,tiles:list[dict])->
     that it can be vectorized.'''
 
     for i in range(num_tiles):
-        #print(i) # debug
+        print(i) # debug
         for j in range(num_tiles):
             for d_i in range(2):
                 if i == j: # diagonal elements are set to infinite since they can never happen anyway
@@ -138,7 +143,10 @@ if __name__ == "__main__":
     ''' Compatability function'''
     from numpy.linalg import norm
     #compatability = lambda x,y: norm(x-y)/len(x)
-    compatability = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y))
+    compatability = lambda x,y: np.mean(np.abs(x-y))
+    
+    def compatability_warp(x:wp.array, y:wp.array):
+        return wp.dot(x-y,x-y) / wp.length()
 
-    print(compute_energy(file = "Inputs/"+"Original_Nebula.jpg", color=True, energyFunction = compatability,puzzle_shape=(40,60)))
+    print(compute_energy(file = "Inputs/"+"Original_Nebula.jpg", color=True, energyFunction = compatability_warp,puzzle_shape=(40,60)))
     #print(compute_energy(file = "Inputs/"+"Nebula_Puzzle.jpg", color=True, energyFunction = compatability,puzzle_shape=(40,60)))

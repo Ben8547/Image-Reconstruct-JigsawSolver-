@@ -15,21 +15,22 @@ file = "Inputs/"+"Nebula_Puzzle.jpg"
 
 compatability = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y))  # energy function
 
-simulation = generate_simGrid_from_file(file, color=Color, energy_function=compatability, grid_size=(40,60), T0=10., Tf=0.5, geometric_decay_rate=0.9999)
-#simulation = generate_genome_from_file(file, color=Color,populationSize=100, numberGenerations=10, parentsPerGeneration=5, energy_function=compatability, grid_size=(40,60), T0=10., Tf=0.5, geometric_decay_rate=0.999, updates=True)
+#simulation = generate_simGrid_from_file(file, color=Color, energy_function=compatability, grid_size=(40,60), T0=10., Tf=0.5, geometric_decay_rate=0.9999)
+simulation = generate_genome_from_file(file, color=Color,populationSize=20, numberGenerations=10, parentsPerGeneration=5, energy_function=compatability, grid_size=(40,60), T0=10., Tf=0.5, geometric_decay_rate=0.999, updates=True)
 
 print(f"Initial Energy: {simulation.energy}")
 
-simulation.anneal()
-#simulation.run_simulation()
+#simulation.anneal()
+simulation.run_simulation()
 #simulation.run_simulation_with_annealing()
 
 print(f"Final energy {simulation.energy}")
 
-#restored_page = genome_reconstruct(simulation, color=Color)
-restored_page = annealing_reconstruct(simulation, color=Color)
+restored_page = genome_reconstruct(simulation, color=Color)
+#restored_page = annealing_reconstruct(simulation, color=Color)
 
-save_annealing_output("Outputs/"+"genome-color.jpg", simulation, Color, restored_page)
+#save_annealing_output("Outputs/"+"genome-color.jpg", simulation, Color, restored_page)
+save_genome_output("Outputs/"+"genome-color.jpg", simulation, Color, restored_page)
 
 plt.imshow(restored_page)
 plt.show()
