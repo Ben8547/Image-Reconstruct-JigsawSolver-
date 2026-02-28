@@ -96,3 +96,13 @@ For a 40x60 puzzle (Original_Nebula.jpg) we get:
 	NUMBA without compile time: 202.50924015045166 seconds
 Thus there is a point at which, even with compile time, NUMBA shaves minutes off of the compute time.
 I am going to work on changing the two class files to compute the energy with NUMBA but this will require an upheaval of the data types that I am using. I'll need to switch the list of dictionaries to numpy arrays. Additionally, we will need to store the tiles in a separate data type than before, but NUMBA is not ideal for handling the storage of arrays so this cannot be put in a NUMBA function; thus we can only use NUMBA with the energy matrix computations.
+
+2-28-2026 13:51 : after making several more energy computation optimizations, the most of major of which being replacing the tile storage array with an empty array at initialization and not computing the reciprocal directions with mesh_grid because we only use the left and top sides anyway, we redo the timing tests:
+For a 20x20 puzzle (Original_Nebula.jpg) we get:
+	No NUMBA:  seconds
+	NUMBA with compile time:  seconds
+	NUMBA without compile time:  seconds
+For a 40x60 puzzle (Original_Nebula.jpg) we get:
+	No NUMBA: 308.3283190727234 seconds
+	NUMBA with compile time: 232.68557977676392 seconds
+	NUMBA without compile time: 202.50924015045166 seconds

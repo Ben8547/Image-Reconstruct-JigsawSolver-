@@ -124,7 +124,7 @@ def total_energy(simGrid, cache_energies) -> float:
 if __name__ == "__main__":
 
     ''' Compatability function'''
-    from numpy.linalg import norm
+    #from numpy.linalg import norm
     #compatability = lambda x,y: norm(x-y)/len(x)
 
     #print(compute_energy(file = "Inputs/"+"test.jpg", color=True, energyFunction = compatability,puzzle_shape=(8,8)))
@@ -136,11 +136,11 @@ if __name__ == "__main__":
     # Benchmarking
     #------
     start_time = time()
-    print(compute_energy(file = "Inputs/"+"Original_Nebula.jpg", color=True, energyFunction = compatability,puzzle_shape=(40,60)))
+    print(compute_energy(file = "Inputs/"+"Original_Nebula.jpg", color=True, energyFunction = compatability,puzzle_shape=(20,20)))
     end_time = time()
-    print(f'compleated in {end_time-start_time}')
+    print(f'completed in {end_time-start_time}')
 
     start_time = time()
-    print(compute_energy(file = "Inputs/"+"Original_Nebula.jpg", color=True, energyFunction = compatability,puzzle_shape=(40,60)))
+    print(compute_energy(file = "Inputs/"+"Original_Nebula.jpg", color=True, energyFunction = compatability,puzzle_shape=(20,20)))
     end_time = time()
-    print(f'compleated in {end_time-start_time}')
+    print(f'completed in {end_time-start_time}')
