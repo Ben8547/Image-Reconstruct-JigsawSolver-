@@ -157,8 +157,9 @@ class Genome:
                 for i, element in enumerate(grid.ravel()):
                     # i is the index of the raveled array; element is the integer representing the tile
                     if element in parent_adjacencies:
-                        m = i // current_shape[1] # row index of element
-                        n = i % current_shape[1] # column index of element
+                        m, n = divmod(i, current_shape[1])
+                        # m = row index of element
+                        # n = column index of element
                         open = self.check_open_side(grid, m, n, current_shape)
                         repetative_neighbors_dict = parent_adjacencies_lookup[element] # should return a dictionary with the parental repeated neighbors on each side listed
                         if any( ( ((repetative_neighbors_dict[d] is not None) and (repetative_neighbors_dict[d] not in used_tiles)) and ( open[d] == True ) ) for d in self.directions ): # check that the intended neighbor has not already been place in the child; recall that None is in the list of used tiles so we get True if there is no ajacency
@@ -168,8 +169,9 @@ class Genome:
                 if dual_adjacent_in_child: # check the list is non-empty; i.e. were any of the neighbors not already chosen?
                     # choose a tile which a neighbour
                     tile = np.random.choice(dual_adjacent_in_child) # tile index in the flat array
-                    m = tile // current_shape[1] # row of tile
-                    n = tile % current_shape[1] # column of tile
+                    m, n = divmod(tile, current_shape[1])
+                    # m = row index of element
+                    # n = column index of element
                     tile = grid[m,n]
                     # now find its common neighbours in the parents, and choose one at random
                     repetative_neighbors_dict = parent_adjacencies_lookup[tile]
@@ -202,8 +204,7 @@ class Genome:
                 for i, element in enumerate(grid.ravel()):
                     if element != -1:
                         # i is the index of the raveled array; element is the integer representing the tile
-                        m = i // current_shape[1] # row index of element
-                        n = i % current_shape[1] # column index of element
+                        m, n = divmod(i, current_shape[1])
                         open = self.check_open_side(grid, m,n, current_shape)
                         any_open = any(open[j] for j in self.directions)
                         if any_open:
@@ -212,8 +213,9 @@ class Genome:
                 # Now check if any of the valid tiles have any unused best-buddies
                 buddied = dict()
                 for i in valid_elements:
-                    m = i // current_shape[1] # row index of element
-                    n = i % current_shape[1] # column index of element
+                    m, n = divmod(i, current_shape[1])
+                    # m = row index of element
+                    # n = column index of element
                     open = self.check_open_side(grid, m, n, current_shape)
                     element = grid[m,n]
                     for d in {0,1,2,3}:
@@ -238,8 +240,7 @@ class Genome:
                         #assert placement not in used_tiles, "duplication4" # debug
                 else:
                     element_index = np.random.choice(valid_elements) # choose one of the valid elements to add on to
-                    m = element_index // current_shape[1]
-                    n = element_index % current_shape[1]
+                    m, n = divmod(element_index, current_shape[1])
                     element = grid[m,n]
                     # now find the valid neighbors of that element
                     valid_directions = []

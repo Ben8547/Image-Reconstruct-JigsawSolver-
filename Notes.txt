@@ -90,4 +90,7 @@ Another issue that I thing plagues this particular application and not the puzzl
 	No NUMBA: 10.22437834739685 seconds
 	NUMBA with compile time: 19.85781741142273 seconds
 	NUMBA without compile time: 6.50146746635437 seconds
-For a 40x60 puzzle (Original_Nebula.jpg) we get
+For a 40x60 puzzle (Original_Nebula.jpg) we get:
+	No NUMBA: 308.3283190727234 seconds
+	NUMBA with compile time: 19.85781741142273 seconds
+	NUMBA without compile time: 6.50146746635437 seconds
