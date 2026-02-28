@@ -421,7 +421,7 @@ Running the pure annealing algorithm with single and subarray swaps at 0.67 and 
 </figure>
 
 ## Benchmarking
-### Bechmarks for Energy Caching:
+### Bechmarks for Energy Caching
 * For a 20x20 puzzle (Original_Nebula.jpg) we get:
 	* No NUMBA: 8.893833875656128 seconds
 	* NUMBA with compile time: 15.388114213943481 seconds
