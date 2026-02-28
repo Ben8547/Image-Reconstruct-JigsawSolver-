@@ -50,13 +50,13 @@ class Genome:
         for d in {0,1}: # we need oly do half of the directions because best-buddies will be symmetrical across directions so we need only identify one of the pair
             for i in range(self.grid_shape[0]*self.grid_shape[1]): # iterate through tile indicies
                 canidate_bb = np.argmin(self.cached_energies[i,:,d])
-                if i == np.argmin(self.cached_energies[canidate_bb,:,(d+2)%4]): # reciprocity
+                if i == np.argmin(self.cached_energies[:, canidate_bb, d]): # reciprocity
                     best_buddies[d][i] = canidate_bb # only creates the dictionary entry if it is needed
                     best_buddies[(d+2)%4][canidate_bb] = i
         return best_buddies
     
     def run_simulation(self):
-        '''Note that you must have more more than seld.parentsPerGen items in self.chromosomes in order for this function to run properly'''
+        '''Note that you must have more more than self.parentsPerGen items in self.chromosomes in order for this function to run properly'''
         if len([chromosome for chromosome in self.chromosomes if chromosome is not None]) < self.parentsPerGen:
             self.chromosomes[:self.populationSize] = self.generate_initial_samples(self.populationSize)
             #raise ValueError("Not enough grids in self.chromosomes")
@@ -255,7 +255,10 @@ class Genome:
                     unused_tile_pure = list(unused_tiles)
                     num_sample = np.min([60, len(unused_tile_pure)]) # by doing this random sampling, it ensures if the most compatable one it not the true fit, we have a chance of still getting the true fit
                     samples = np.random.choice(unused_tile_pure,num_sample,replace=False).astype(int)
-                    compat = self.cached_energies[element*np.ones_like(samples,dtype=int), samples, direction]
+                    if direction in {0,1}:
+                        compat = self.cached_energies[element*np.ones_like(samples,dtype=int), samples, direction]
+                    else:
+                        compat = self.cached_energies[samples, element*np.ones_like(samples,dtype=int), direction]
                     max_compatability = samples[np.argmin(compat)]
                     # add the chosen neighbor to the child
 
@@ -492,6 +495,8 @@ def generate_genome_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(
                 tile_sides[index, 1, :tile_length] = gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j]
                 tile_sides[index, 3, :tile_length] = gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1]
         del gray_matrix # no need to store a large matrix any longer than we need it. We only need the boarders anyway
+        cached_energies = cache_energies_grayscale(num_tiles, tile_sides, energy_function, tile_length,tile_width)
+
     else:
         width = color_volume.shape[1] # horizontal distance - should be the shoter of the two
         length = color_volume.shape[0]
@@ -502,7 +507,7 @@ def generate_genome_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(
 
         for i in range(grid_size[0]):
             for j in range(grid_size[1]):
-                tiles.append(gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)]) # need this one to reconstruct the array later
+                tiles.append(color_volume[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)]) # need this one to reconstruct the array later
                 index = i * grid_size[0] + j
                 tile_sides[index, 0, :tile_width, :] = color_volume[tile_length*i,tile_width*j:tile_width*(j+1), :]
                 tile_sides[index, 2, :tile_width, :] = color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1), :]
@@ -511,21 +516,12 @@ def generate_genome_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(
 
         del color_volume # no need to store a large matrix any longer than we need it. We only need the boarders anyway
 
-        cached_energies = cache_energies_color()
+        cached_energies = cache_energies_color(num_tiles, tile_sides, energy_function, tile_length,tile_width)
 
     grid = np.arange(0,num_tiles,1,dtype=int).reshape((grid_size[0],grid_size[1])) # the representation of the image; using uint8 because nothing is negative or bigger than 255 and thus using any other integer system would be wasteful
 
 
     tiles = np.array(tiles, dtype=object) # apparently you can make a list of arrays into an array - this makes indexing later much easier - this is a change from the previous version
-
-    #Since we only did top and left, we can recover bottom and right since the matrix has the following property cache[i,j,0] = cache[j,i,2] and cache[i,j,1] = cache[j,i,3]
-    # by only computing half of the directions in the loop we should halve the compute time of the loop
-
-    X, Y = np.meshgrid(np.arange(0,num_tiles,1,dtype=int),np.arange(0,num_tiles,1,dtype=int))
-
-    cache_energies[X,Y,2] = cache_energies[Y,X,0]
-
-    cache_energies[X,Y,3] = cache_energies[Y,X,1]
 
     #I'm fairly happy with my idea to use meshgrid to do this.
 
@@ -534,7 +530,7 @@ def generate_genome_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(
     print("cached tile energies")
     
 
-    return Genome([grid],tiles,cache_energies,numberGenerations,parentsPerGeneration,populationSize,T0=T0, Tf=Tf, geometric_decay_rate=geometric_decay_rate,updates=updates)
+    return Genome([grid],tiles,cached_energies,numberGenerations,parentsPerGeneration,populationSize,T0=T0, Tf=Tf, geometric_decay_rate=geometric_decay_rate,updates=updates)
 
 
 @njit(parallel = True, fastmath = True)
@@ -555,9 +551,9 @@ def cache_energies_color(num_tiles, tile_sides, energyFunction, tile_length,tile
 
 
 @njit(parallel = True, fastmath = True)
-def cache_energies_grayscale(num_tiles, tile_sides, energyFunction, tile_length,tile_width):
+def cache_energies_grayscale(num_tiles, tile_sides, energyFunction, tile_length, tile_width):
 
-    cached_energies = np.zeros((num_tiles,num_tiles,4),dtype=np.float32)
+    cached_energies = np.empty((num_tiles,num_tiles,4),dtype=np.float32)
 
     for i in prange(num_tiles): # run the first loop in parallel - innner loops apparently cannot be parallelized
         for j in range(num_tiles):
@@ -585,14 +581,14 @@ def genome_reconstruct(simulation : Genome, color = True):
         for i in range(simulation.grid_shape[0]):
             for j in range(simulation.grid_shape[1]):
                 dict_index = simulation.product[i,j]
-                resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] = simulation.tile_data[dict_index]["entire"]
+                resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] = simulation.tile_data[dict_index]
     else:
         resotred_page = np.zeros((length,width))
 
         for i in range(simulation.grid_shape[0]):
             for j in range(simulation.grid_shape[1]):
                 dict_index = simulation.product[i,j]
-                resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = simulation.tile_data[dict_index]["entire"]
+                resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = simulation.tile_data[dict_index]
 
     return resotred_page.astype(np.uint8) # jpg can only handle this resolution anyway
 

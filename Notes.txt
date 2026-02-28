@@ -99,10 +99,10 @@ I am going to work on changing the two class files to compute the energy with NU
 
 2-28-2026 13:51 : after making several more energy computation optimizations, the most of major of which being replacing the tile storage array with an empty array at initialization and not computing the reciprocal directions with mesh_grid because we only use the left and top sides anyway, we redo the timing tests:
 For a 20x20 puzzle (Original_Nebula.jpg) we get:
-	No NUMBA:  seconds
-	NUMBA with compile time:  seconds
-	NUMBA without compile time:  seconds
+	No NUMBA: 8.893833875656128 seconds
+	NUMBA with compile time: 15.388114213943481 seconds
+	NUMBA without compile time: 6.202281475067139 seconds
 For a 40x60 puzzle (Original_Nebula.jpg) we get:
-	No NUMBA: 308.3283190727234 seconds
-	NUMBA with compile time: 232.68557977676392 seconds
-	NUMBA without compile time: 202.50924015045166 seconds
+	No NUMBA: 293.23735904693604 seconds
+	NUMBA with compile time: 231.85261917114258 seconds
+	NUMBA without compile time: 215.7313826084137 seconds
