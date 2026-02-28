@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from time import sleep
 import cv2
-from numba import njit
 
 '''
 Setup
@@ -12,14 +11,14 @@ Setup
 
 Color = True
 
-file = "Inputs/"+"Nebula_Puzzle.jpg"
+file = "Inputs/"+"Original_Squirrel.jpg"
 
-@njit(parallel = True, fastmath=True)
-def compatability(x,y):  # energy function
-    return np.mean(np.abs(x-y))
+'''def compatability(x,y):  # energy function
+    return np.mean(np.abs(x-y))''' # does not work because we use int8 to store information
+compatability = lambda x,y: np.mean(np.maximum(x,y) - np.minimum(x,y))
 
 #simulation = generate_simGrid_from_file(file, color=Color, energy_function=compatability, grid_size=(40,60), T0=10., Tf=0.5, geometric_decay_rate=0.9999)
-simulation = generate_genome_from_file(file, color=Color,populationSize=20, numberGenerations=10, parentsPerGeneration=5, energy_function=compatability, grid_size=(40,60), T0=10., Tf=0.5, geometric_decay_rate=0.999, updates=True)
+simulation = generate_genome_from_file(file, color=Color,populationSize=100, numberGenerations=10, parentsPerGeneration=5, energy_function=compatability, grid_size=(8,8), T0=10., Tf=0.5, geometric_decay_rate=0.999, updates=True)
 
 print(f"Initial Energy: {simulation.energy}")
 
