@@ -69,6 +69,8 @@ def cache_energies(color, array, columns, rows, num_tiles, energyFunction):
             tiles[i,2,:tile_width] = gray_matrix[tile_length*(m+1)-1,tile_width*n:tile_width*(n+1)]
             tiles[i,1,:tile_length] = gray_matrix[tile_length*m:tile_length*(m+1),tile_width*n]
             tiles[i,3,:tile_length] = gray_matrix[tile_length*m:tile_length*(m+1),tile_width*(n+1)-1]
+
+        cached_energies = cache_energies_grayscale(num_tiles,energyFunction,tiles,tile_width,tile_length)
                     
     else:
         color_volume = array
@@ -77,30 +79,25 @@ def cache_energies(color, array, columns, rows, num_tiles, energyFunction):
         tile_width = width//columns
         tile_length = length//rows
 
-        tiles = -np.ones(( num_tiles, 4, max(tile_length,tile_width) ),dtype=np.float32)
+        tiles = -np.ones(( num_tiles, 4, max(tile_length,tile_width,3) ),dtype=np.float32)
 
-        '''for i in range(rows):
+        for i in prange(num_tiles):
             m, n = divmod(i,columns)
-                    0: color_volume[tile_length*i,tile_width*j:tile_width*(j+1),:], # top
-                    2: color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1),:], # bottom
-                    1: color_volume[tile_length*i:tile_length*(i+1),tile_width*j,:], # left
-                    3: color_volume[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1,:], # right
-                    "entire": color_volume[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] # need this last one to reconstruct the array later'''
-        """This needs to be updated for Numba compatability"""
-
-    cached_energies = cache_energies_old(num_tiles,energyFunction,tiles,tile_width,tile_length)
+            tiles[i,0,:tile_width,:] = color_volume[tile_length*m,tile_width*n:tile_width*(n+1),:]
+            tiles[i,2,:tile_width,:] = color_volume[tile_length*(m+1)-1,tile_width*n:tile_width*(n+1),:]
+            tiles[i,1,:tile_length,:] = color_volume[tile_length*m:tile_length*(m+1),tile_width*n]
+            tiles[i,3,:tile_length,:] = color_volume[tile_length*m:tile_length*(m+1),tile_width*(n+1)-1,:]
 
     return cached_energies
 
 
 @njit(fastmath=True, parallel=True) # this function takes the bulk of the time so hopefully numba can speed it up; The energy doesn't need to be perfect since it has such large magnitude anyway. Thus we enable fastmath.
-def cache_energies_old(num_tiles:int,energyFunction:Callable[[np.ndarray,np.ndarray],np.float32],tiles:np.ndarray,tile_width:int, tile_length:int)->np.ndarray:
+def cache_energies_grayscale(num_tiles:int,energyFunction:Callable[[np.ndarray,np.ndarray],np.float32],tiles:np.ndarray,tile_width:int, tile_length:int)->np.ndarray:
     cached_energies = np.zeros((num_tiles,num_tiles,4),dtype=np.float32)
 
-
-    for i in prange(num_tiles):
-        for j in prange(num_tiles):
-            for d_i in prange(2):
+    for i in prange(num_tiles): # run the first loop in parallel - innner loops apparently cannot be parallelized
+        for j in range(num_tiles):
+            for d_i in range(2):
                 if i == j: # diagonal elements are set to infinite since they can never happen anyway
                     cached_energies[i,j,d_i] = np.inf
                 else:
@@ -110,6 +107,26 @@ def cache_energies_old(num_tiles:int,energyFunction:Callable[[np.ndarray,np.ndar
                         cached_energies[i,j,d_i] = energyFunction( tiles[i, d_i, :tile_length], tiles[j, (d_i + 2) % 4, :tile_length] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
 
     return cached_energies
+
+
+@njit(fastmath=True, parallel=True) # this function takes the bulk of the time so hopefully numba can speed it up; The energy doesn't need to be perfect since it has such large magnitude anyway. Thus we enable fastmath.
+def cache_energies_color(num_tiles:int,energyFunction:Callable[[np.ndarray,np.ndarray],np.float32],tiles:np.ndarray,tile_width:int, tile_length:int)->np.ndarray:
+    cached_energies = np.zeros((num_tiles,num_tiles,4),dtype=np.float32)
+
+    for i in prange(num_tiles): # run the first loop in parallel - innner loops apparently cannot be parallelized
+        for j in range(num_tiles):
+            for d_i in range(2):
+                if i == j: # diagonal elements are set to infinite since they can never happen anyway
+                    cached_energies[i,j,d_i] = np.inf
+                else:
+                    if d_i == 0:
+                        cached_energies[i,j,d_i] = energyFunction( tiles[i, d_i, :tile_width], tiles[j, (d_i + 2) % 4, :tile_width,:] ) # cutting off at tile_width shouldn't matter since they subtract out anyway, but in the case of some other energy function this is a good practice to do anyway
+                    else: # d_i == 1
+                        cached_energies[i,j,d_i] = energyFunction( tiles[i, d_i, :tile_length], tiles[j, (d_i + 2) % 4, :tile_length,:] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
+
+    return cached_energies
+
+
 
 # cannot use numba here due to advanced indexing
 def total_energy(simGrid, cache_energies) -> float:
@@ -135,6 +152,6 @@ if __name__ == "__main__":
     #compatability = lambda x,y: norm(x-y)/len(x)
 
     print(compute_energy(file = "Inputs/"+"test.jpg", color=False, energyFunction = compatability,puzzle_shape=(8,8)))
-    print(compute_energy(file = "Inputs/"+"Original_Squirrel.jpg", color=False, energyFunction = compatability,puzzle_shape=(8,8)))
-    print(compute_energy(file = "Inputs/"+"Original_RainbowFlower.jpg", color=False, energyFunction = compatability,puzzle_shape=(8,8)))
-    print(compute_energy(file = "Inputs/"+"Nebula_Puzzle.jpg", color=False, energyFunction = compatability,puzzle_shape=(40,60)))
+    print(compute_energy(file = "Inputs/"+"Original_Squirrel.jpg", color=True, energyFunction = compatability,puzzle_shape=(8,8)))
+    print(compute_energy(file = "Inputs/"+"Original_RainbowFlower.jpg", color=True, energyFunction = compatability,puzzle_shape=(8,8)))
+    #print(compute_energy(file = "Inputs/"+"Nebula_Puzzle.jpg", color=True, energyFunction = compatability,puzzle_shape=(40,60)))
