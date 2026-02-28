@@ -1,6 +1,7 @@
 # Table of Contents
 
 - [Project Purpose](#project-purpose)
+- [Dependancies](#dependancies)
 - [Preliminary Examples](#preliminary-examples)
   - [Annealing](#annealing)
   - [Genetic Algorithm](#genetic-algorithm)
@@ -20,9 +21,17 @@
   - [genome_reconstruct](#genome_classgenome_reconstruct)
   - [save_genome_output](#genome_classsave_genome_output)
 - [Development Notes and Example Outputs](#development-notes-and-example-outputs)
+  - [Benchmarking](#benchmarking)
+  	- [Bechmarks for Energy Caching](#bechmarks-for-energy-caching)   
 
 # Project Purpose:
 This project implements simulated annealing and genetic algorithm approaches to reconstructing a shuffled image grid (often reffered to a jigsaw puzzle in the literature) by minimizing an energy function defined over tile boundary compatibilities. Further in development I would like to add additional functionality.
+
+## Dependancies
+
+```cmd
+pip install numba, numpy, cv2
+```
 
 ## Preliminary Examples
 ### Annealing
@@ -89,7 +98,7 @@ Current tile arrangement (indices referencing ```tile_data```).
 The dimensions of ```simGrid```.
 
 ```tile_data : ndarray(dtype=object)```
-Array of dictionaries storing tile boundary slices and full tile image.
+Array of storing tile boundary slices and full tile image.
 
 ``` cached_energies : ndarray ```
 Precomputed compatibility energies between tile edges.
@@ -238,7 +247,7 @@ List of candidate grids (each grid is an index matrix referencing tile_data).
 Energy value associated with each grid in the population.
 
 ```tile_data : ndarray(dtype=object)```
-Array of dictionaries storing tile boundary slices and full tile image.
+Array storing tile boundary slices and full tile image.
 
 ```cached_energies : ndarray```
 Precomputed compatibility energies between tile edges.
@@ -410,3 +419,22 @@ Running the pure annealing algorithm with single and subarray swaps at 0.67 and 
   <img src="https://github.com/Ben8547/Image-Reconstruct-JigsawSolver-/blob/main/ReadMeImages/pure-genome-color-10gens-100population.jpg" width="300"/>
   <figcaption><em>Figure 7: Result of genetic algorithm with 10 generations of 100 individuals per generation. The final energy was ____.</em></figcaption>
 </figure>
+
+## Benchmarking
+### Bechmarks for Energy Caching
+* For an 8x8 puzzle (Original_Nebula.jpg)
+	* No NUMBA: 0.18275141716003418 seconds
+	* NUMBA with compile time: 4.55498194694519 seconds
+	* NUMBA without compile time: 0.2612166404724121 seconds
+* For a 20x20 puzzle (Original_Nebula.jpg) we get:
+	* No NUMBA: 8.893833875656128 seconds
+	* NUMBA with compile time: 15.388114213943481 seconds
+	* NUMBA without compile time: 6.202281475067139 seconds
+* For a 40x60 puzzle (Original_Nebula.jpg) we get:
+	* No NUMBA: 293.23735904693604 seconds
+	* NUMBA with compile time: 231.85261917114258 seconds
+	* NUMBA without compile time: 215.7313826084137 seconds
+* For a 50x50 puzzle (Original_Nebula.jpg) we get:
+	* No NUMBA: 156.52668356895447 seconds
+	* NUMBA with compile time: 133.72849583625793 seconds
+	* NUMBA without compile time: 134.13951468467712 seconds
