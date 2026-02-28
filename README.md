@@ -96,7 +96,7 @@ Current tile arrangement (indices referencing ```tile_data```).
 The dimensions of ```simGrid```.
 
 ```tile_data : ndarray(dtype=object)```
-Array of dictionaries storing tile boundary slices and full tile image.
+Array of storing tile boundary slices and full tile image.
 
 ``` cached_energies : ndarray ```
 Precomputed compatibility energies between tile edges.
@@ -245,7 +245,7 @@ List of candidate grids (each grid is an index matrix referencing tile_data).
 Energy value associated with each grid in the population.
 
 ```tile_data : ndarray(dtype=object)```
-Array of dictionaries storing tile boundary slices and full tile image.
+Array storing tile boundary slices and full tile image.
 
 ```cached_energies : ndarray```
 Precomputed compatibility energies between tile edges.
