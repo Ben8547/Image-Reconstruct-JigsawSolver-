@@ -14,7 +14,7 @@ Color = True
 file = "Inputs/"+"Original_Squirrel.jpg"
 
 '''def compatability(x,y):  # energy function
-    return np.mean(np.abs(x-y))''' # does not work because we use int8 to store information
+    return np.mean(np.abs(x-y))''' # does not work because we use uint8 to store information
 compatability = lambda x,y: np.mean(np.maximum(x,y) - np.minimum(x,y))
 
 #simulation = generate_simGrid_from_file(file, color=Color, energy_function=compatability, grid_size=(40,60), T0=10., Tf=0.5, geometric_decay_rate=0.9999)
