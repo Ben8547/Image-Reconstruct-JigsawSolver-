@@ -565,7 +565,7 @@ def genome_reconstruct(simulation : Genome, color = True):
                 dict_index = simulation.product[i,j]
                 resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = simulation.tile_data[dict_index]["entire"]
 
-    return resotred_page.astype(int) # jpg can only handle this resolution anyway
+    return resotred_page.astype(np.uint8) # jpg can only handle this resolution anyway
 
 def save_genome_output(filename, simulation : Genome, color = True, reconstruction = None):
     if reconstruction is None:

@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from time import sleep
 import cv2
+from numba import njit
 
 '''
 Setup
@@ -13,7 +14,9 @@ Color = True
 
 file = "Inputs/"+"Nebula_Puzzle.jpg"
 
-compatability = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y))  # energy function
+@njit(parallel = True, fastmath=True)
+def compatability(x,y):  # energy function
+    return np.mean(np.abs(x-y))
 
 #simulation = generate_simGrid_from_file(file, color=Color, energy_function=compatability, grid_size=(40,60), T0=10., Tf=0.5, geometric_decay_rate=0.9999)
 simulation = generate_genome_from_file(file, color=Color,populationSize=20, numberGenerations=10, parentsPerGeneration=5, energy_function=compatability, grid_size=(40,60), T0=10., Tf=0.5, geometric_decay_rate=0.999, updates=True)

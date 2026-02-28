@@ -92,7 +92,7 @@ class simulation_grid:
         '''This is depreciated; we don't actually need this'''
         shape = array.shape
         # add top and bottom
-        array = array.astype(np.int8) # we need to switch from uint8 since we are adding -1s.
+        array = array.astype(int) # we need to switch from uint8 since we are adding -1s.
         array = np.vstack([-np.ones((1,shape[1]),dtype=np.int8), array])
         array = np.vstack([array, -np.ones((1,shape[1]),dtype=np.int8)])
         # add left/right
@@ -471,7 +471,7 @@ def annealing_reconstruct(simulation : simulation_grid, color = True):
                 dict_index = simulation.simGrid[i,j]
                 resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = simulation.tile_data[dict_index]["entire"]
 
-    return resotred_page.astype(int) # jpg can only handle this resolution anyway
+    return resotred_page.astype(np.uint8) # jpg can only handle this resolution anyway
 
 def save_annealing_output(filename, simulation : simulation_grid, color = True, reconstruction = None):
     if reconstruction is None:

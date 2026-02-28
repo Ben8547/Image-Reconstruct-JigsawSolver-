@@ -1,127 +1,117 @@
 import numpy as np
 import cv2
-import warp as wp
+#import warp as wp
+from numba import njit, prange, jit
+from typing import Callable
 
-wp.init()
+@njit(parallel = True, fastmath=True)
+def compatability(x,y):
+    return np.mean(np.abs(x-y))
 
-
-def compute_energy(file,color=True, energyFunction=lambda x,y: lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y)),puzzle_shape = (8,8)):
+def compute_energy(file,color=True, energyFunction: Callable = compatability, puzzle_shape = (8,8)):
 
     rows = puzzle_shape[0]
     columns = puzzle_shape[1]
     num_tiles = rows*columns
 
-    grid = np.arange(0,num_tiles,1,dtype=int).reshape((rows,columns))
+    grid = np.arange(0,num_tiles,1).reshape((rows,columns))
 
-    '''Load in the test file (permanent)'''
+    '''Load in the test file'''
     if color:
-        color_volume = cv2.imread(file, cv2.IMREAD_COLOR)
+        array = cv2.imread(file, cv2.IMREAD_COLOR)
 
         '''
         This outputs a 3 dimensional array: (hight, width, 3)
         We will need to store data differently taking this into account.
         '''
     else:
-        gray_matrix = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
+        array = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
 
-
-    '''
-    Now we disect each tile and save it's boarder vectors in a list of dictionaries.
-    The  dictionaries will contain labels "top", "bottom", "left", "right"
-    '''
-    tiles = []
-
-    if not color:
-        width = gray_matrix.shape[1] # horizontal distance - should be the shoter of the two
-        length = gray_matrix.shape[0]
-        tile_width = width//columns
-        tile_length = length//rows
-        #print(tile_length)
-
-        for i in range(rows):
-            for j in range(columns):
-                tiles.append({
-                    0: gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)],
-                    2: gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
-                    1: gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j],
-                    3: gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1],
-                    "entire": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] # need this last one to reconstruct the array later
-                })
-        del gray_matrix # no need to store a large matrix any longer than we need it. We only need the boarders anyway
-    else:
-        width = color_volume.shape[1] # horizontal distance - should be the shoter of the two
-        length = color_volume.shape[0]
-        tile_width = width//columns
-        tile_length = length//rows
-        #print(tile_length)
-
-        for i in range(rows):
-            for j in range(columns):
-                tiles.append({
-                    0: color_volume[tile_length*i,tile_width*j:tile_width*(j+1),:], # top
-                    2: color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1),:], # bottom
-                    1: color_volume[tile_length*i:tile_length*(i+1),tile_width*j,:], # left
-                    3: color_volume[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1,:], # right
-                    "entire": color_volume[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] # need this last one to reconstruct the array later
-                }) # we use the wierd ordering so that we can use modular arithmatic to send top to bottom and left to right easily (and the reverse)
-
-        del color_volume # no need to store a large matrix any longer than we need it. We only need the boarders anyway
-
-    grid = np.arange(0,num_tiles,1,dtype=int).reshape((rows,columns))
-
-    cached_energies = cache_energies_old(num_tiles,energyFunction,tiles)
+    cached_energies = cache_energies(color,array,columns,rows, num_tiles, energyFunction)
 
     #Since we only did top and left, we can recover bottom and right since the matrix has the following property cache[i,j,0] = cache[j,i,2] and cache[i,j,1] = cache[j,i,3]
     # by only computing half of the directions in the loop we should halve the compute time of the loop
 
-    X, Y = np.meshgrid(np.arange(0,num_tiles,1,dtype=int),np.arange(0,num_tiles,1,dtype=int))
+    X, Y = np.meshgrid(np.arange(0,num_tiles,1),np.arange(0,num_tiles,1))
 
     cached_energies[X,Y,2] = cached_energies[Y,X,0]
 
     cached_energies[X,Y,3] = cached_energies[Y,X,1]
 
+
+    grid = np.arange(0,num_tiles,1,dtype=int).reshape((rows,columns))
+
     #print("cached") # debug
     
     return total_energy(grid,cached_energies)
 
-def cache_energies(num_tiles:int,energyFunction:callable,tiles:list[dict]):
-    cached_energies = wp.zeros((num_tiles,num_tiles,4),dtype=float)
 
-    for d in range(2):
-        wp.launch(compute_single_energy, dim=num_tiles*num_tiles, inputs=[cached_energies,num_tiles,d])
+@njit(parallel = False, fastmath = True) # cannot paralellize because of numpy advanced indexing of the array
+def cache_energies(color, array, columns, rows, num_tiles, energyFunction):
+    '''
+    Now we disect each tile and save it's boarder vectors in a list of dictionaries.
+    The  dictionaries will contain labels "top", "bottom", "left", "right"
+    '''
 
-    cached_energies = cached_energies.numpy() # convert back to numpy array
+    if not color:
+        gray_matrix = array
+        width = gray_matrix.shape[1] # horizontal distance - should be the shoter of the two
+        length = gray_matrix.shape[0]
+        tile_width = width//columns
+        tile_length = length//rows
 
-    diagonal = np.arange(0,num_tiles,1,dtype=int)
-    cached_energies[diagonal,diagonal,:] = np.inf # set the self-interactions to infinite energy
+        tiles = -np.ones(( num_tiles, 4, max(tile_length,tile_width)),dtype=np.float32)
+        ''' first index controlls which tile we are looking at. The next index indicates the side of the tile 0-3 and the final dimension contains the vector associated with each side with and leftover space being filled with -1s '''
+
+        for i in prange(num_tiles):
+            m, n = divmod(i,columns)
+            tiles[i,0,:tile_width] = gray_matrix[tile_length*m,tile_width*n:tile_width*(n+1)]
+            tiles[i,2,:tile_width] = gray_matrix[tile_length*(m+1)-1,tile_width*n:tile_width*(n+1)]
+            tiles[i,1,:tile_length] = gray_matrix[tile_length*m:tile_length*(m+1),tile_width*n]
+            tiles[i,3,:tile_length] = gray_matrix[tile_length*m:tile_length*(m+1),tile_width*(n+1)-1]
+                    
+    else:
+        color_volume = array
+        width = color_volume.shape[1] # horizontal distance - should be the shoter of the two
+        length = color_volume.shape[0]
+        tile_width = width//columns
+        tile_length = length//rows
+
+        tiles = -np.ones(( num_tiles, 4, max(tile_length,tile_width) ),dtype=np.float32)
+
+        '''for i in range(rows):
+            m, n = divmod(i,columns)
+                    0: color_volume[tile_length*i,tile_width*j:tile_width*(j+1),:], # top
+                    2: color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1),:], # bottom
+                    1: color_volume[tile_length*i:tile_length*(i+1),tile_width*j,:], # left
+                    3: color_volume[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1,:], # right
+                    "entire": color_volume[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] # need this last one to reconstruct the array later'''
+        """This needs to be updated for Numba compatability"""
+
+    cached_energies = cache_energies_old(num_tiles,energyFunction,tiles,tile_width,tile_length)
 
     return cached_energies
 
-@wp.kernel
-def compute_single_energy(out:wp.array, num_tiles:int,d:int)->wp.array:
-    tid = wp.tid()
-    i, j = divmod(tid,num_tiles)
-    out[i,j,d] = 1 # unfinished
 
-def cache_energies_old(num_tiles:int,energyFunction:callable,tiles:list[dict])->np.ndarray:
-    cached_energies = np.zeros((num_tiles,num_tiles,4),dtype=float)
+@njit(fastmath=True, parallel=True) # this function takes the bulk of the time so hopefully numba can speed it up; The energy doesn't need to be perfect since it has such large magnitude anyway. Thus we enable fastmath.
+def cache_energies_old(num_tiles:int,energyFunction:Callable[[np.ndarray,np.ndarray],np.float32],tiles:np.ndarray,tile_width:int, tile_length:int)->np.ndarray:
+    cached_energies = np.zeros((num_tiles,num_tiles,4),dtype=np.float32)
 
 
-    '''I've decided to use warp for caching the energies because for even moderaltely sized puzzles caching the energy takes several minutes and I don't believe
-    that it can be vectorized.'''
-
-    for i in range(num_tiles):
-        print(i) # debug
-        for j in range(num_tiles):
-            for d_i in range(2):
+    for i in prange(num_tiles):
+        for j in prange(num_tiles):
+            for d_i in prange(2):
                 if i == j: # diagonal elements are set to infinite since they can never happen anyway
                     cached_energies[i,j,d_i] = np.inf
                 else:
-                    cached_energies[i,j,d_i] = energyFunction( tiles[i][d_i], tiles[j][(d_i + 2) % 4] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
+                    if d_i == 0:
+                        cached_energies[i,j,d_i] = energyFunction( tiles[i, d_i, :tile_width], tiles[j, (d_i + 2) % 4, :tile_width] ) # cutting off at tile_width shouldn't matter since they subtract out anyway, but in the case of some other energy function this is a good practice to do anyway
+                    else: # d_i == 1
+                        cached_energies[i,j,d_i] = energyFunction( tiles[i, d_i, :tile_length], tiles[j, (d_i + 2) % 4, :tile_length] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
 
     return cached_energies
 
-
+# cannot use numba here due to advanced indexing
 def total_energy(simGrid, cache_energies) -> float:
 
     # only rows 1..N-1 AND columns 1..N-1
@@ -143,10 +133,8 @@ if __name__ == "__main__":
     ''' Compatability function'''
     from numpy.linalg import norm
     #compatability = lambda x,y: norm(x-y)/len(x)
-    compatability = lambda x,y: np.mean(np.abs(x-y))
-    
-    def compatability_warp(x:wp.array, y:wp.array):
-        return wp.dot(x-y,x-y) / wp.length()
 
-    print(compute_energy(file = "Inputs/"+"Original_Nebula.jpg", color=True, energyFunction = compatability_warp,puzzle_shape=(40,60)))
-    #print(compute_energy(file = "Inputs/"+"Nebula_Puzzle.jpg", color=True, energyFunction = compatability,puzzle_shape=(40,60)))
+    print(compute_energy(file = "Inputs/"+"test.jpg", color=False, energyFunction = compatability,puzzle_shape=(8,8)))
+    print(compute_energy(file = "Inputs/"+"Original_Squirrel.jpg", color=False, energyFunction = compatability,puzzle_shape=(8,8)))
+    print(compute_energy(file = "Inputs/"+"Original_RainbowFlower.jpg", color=False, energyFunction = compatability,puzzle_shape=(8,8)))
+    print(compute_energy(file = "Inputs/"+"Nebula_Puzzle.jpg", color=False, energyFunction = compatability,puzzle_shape=(40,60)))
