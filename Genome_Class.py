@@ -484,7 +484,7 @@ def generate_genome_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(
         tile_width = width//grid_size[1]
         tile_length = length//grid_size[0]
         
-        tile_sides = -np.ones( ( num_tiles, 4, max(tile_length,tile_width) ), dtype=np.float32)
+        tile_sides = np.empty( ( num_tiles, 4, max(tile_length,tile_width) ), dtype=np.float32)
 
         for i in range(grid_size[0]):
             for j in range(grid_size[1]):
@@ -503,11 +503,11 @@ def generate_genome_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(
         tile_width = width//grid_size[1]
         tile_length = length//grid_size[0]
 
-        tile_sides = -np.ones( ( num_tiles, 4, max(tile_length,tile_width), 3 ), dtype=np.float32)
+        tile_sides = np.empty( ( num_tiles, 4, max(tile_length,tile_width), 3 ), dtype=np.float32)
 
         for i in range(grid_size[0]):
             for j in range(grid_size[1]):
-                tiles.append(color_volume[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)]) # need this one to reconstruct the array later
+                tiles.append(color_volume[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:]) # need this one to reconstruct the array later
                 index = i * grid_size[0] + j
                 tile_sides[index, 0, :tile_width, :] = color_volume[tile_length*i,tile_width*j:tile_width*(j+1), :]
                 tile_sides[index, 2, :tile_width, :] = color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1), :]
@@ -523,10 +523,6 @@ def generate_genome_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(
 
     tiles = np.array(tiles, dtype=object) # apparently you can make a list of arrays into an array - this makes indexing later much easier - this is a change from the previous version
 
-    #I'm fairly happy with my idea to use meshgrid to do this.
-
-    # this is actually suprisingly quick to compute though probably won't scale well for large puzzles. Luckily we only care about 64x64 right now.
-    # in the current case it might actually take longer to open a read a file than just recompute all of the energies
     print("cached tile energies")
     
 
@@ -568,14 +564,13 @@ def cache_energies_grayscale(num_tiles, tile_sides, energyFunction, tile_length,
 
 
 def genome_reconstruct(simulation : Genome, color = True):
-    tile_width = len(simulation.tile_data[0][0]) # length of the top of an arbitrary tile
-    tile_length = len(simulation.tile_data[0][1]) # length of the left of an arbitrary tile
-    
-    width = tile_width * simulation.grid_shape[1] # horizontal distance - should be the shoter of the two
-    length = tile_length * simulation.grid_shape[0]
-    
+    tile_width = (simulation.tile_data[0].shape[1]) # length of the top of an arbitrary tile
+    tile_length = (simulation.tile_data[0].shape[0]) # length of the left of an arbitrary tile
 
     if color:
+        width = tile_width * simulation.grid_shape[1] # horizontal distance - should be the shoter of the two
+        length = tile_length * simulation.grid_shape[0]
+
         resotred_page = np.zeros((length,width,3))
 
         for i in range(simulation.grid_shape[0]):
@@ -583,6 +578,10 @@ def genome_reconstruct(simulation : Genome, color = True):
                 dict_index = simulation.product[i,j]
                 resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] = simulation.tile_data[dict_index]
     else:
+
+        width = tile_width * simulation.grid_shape[1] # horizontal distance - should be the shoter of the two
+        length = tile_length * simulation.grid_shape[0]
+
         resotred_page = np.zeros((length,width))
 
         for i in range(simulation.grid_shape[0]):

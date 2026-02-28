@@ -106,3 +106,6 @@ For a 40x60 puzzle (Original_Nebula.jpg) we get:
 	No NUMBA: 293.23735904693604 seconds
 	NUMBA with compile time: 231.85261917114258 seconds
 	NUMBA without compile time: 215.7313826084137 seconds
+
+
+2-28-2026 17:19 : Added NUMBA to annealing.

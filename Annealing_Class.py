@@ -6,6 +6,7 @@ import numpy as np
 from numpy.random import random, randint, choice
 from time import sleep # debug tool
 import cv2 # file I/O
+from numba import prange, njit
 
 
 '''
@@ -122,8 +123,8 @@ class simulation_grid:
 
         top_energy[boundaries[:,0]] = self.cached_energies[current[boundaries[:,0]],grid[rows[boundaries[:,0]]-1,columns[boundaries[:,0]]],0]
         left_energy[boundaries[:,1]] = self.cached_energies[current[boundaries[:,1]],grid[rows[boundaries[:,1]],columns[boundaries[:,1]]-1],1] 
-        bottom_energy[boundaries[:,2]] = self.cached_energies[current[boundaries[:,2]],grid[rows[boundaries[:,2]]+1,columns[boundaries[:,2]]],2] 
-        right_energy[boundaries[:,3]] = self.cached_energies[current[boundaries[:,3]],grid[rows[boundaries[:,3]],columns[boundaries[:,3]]+1],3] 
+        bottom_energy[boundaries[:,2]] = self.cached_energies[grid[rows[boundaries[:,2]]+1,columns[boundaries[:,2]]], current[boundaries[:,2]], 0] 
+        right_energy[boundaries[:,3]] = self.cached_energies[grid[rows[boundaries[:,3]],columns[boundaries[:,3]]+1], current[boundaries[:,3]],1] 
 
         return top_energy + left_energy + bottom_energy + right_energy # total energy of local interactions
 
@@ -165,7 +166,10 @@ class simulation_grid:
                 worst_sample = (worst_sample[0],worst_sample[1]) # it is important that this is a tuple, if it is a list or an array, then numpy indexing treats it as two separate indicies to be looked up
                 # now we choose a direction and find its most optimal position in that direction and swap with the tile current in that position.
                 d = randint(0,4)
-                best_partner = np.argmin(self.cached_energies[self.simGrid[worst_sample],:,d]) # should return the index of the best partner in that direction
+                if d in {0,1}:
+                    best_partner = np.argmin(self.cached_energies[self.simGrid[worst_sample],:,d]) # should return the index of the best partner in that direction
+                else:
+                    best_partner = np.argmin(self.cached_energies[:,self.simGrid[worst_sample],d-2])
                 # make the swap:
                 partner_location = np.argwhere( self.simGrid == best_partner )[0] # returns the matching piece, not the location to move the piece to; returns a 1x2 array which is why we must extract [0]
                 partner_location[0] += -(d - 1) * ( d%2 == 0 )  # add to the indicies depending on direction. If d=0 we change by +1, if d = 2 we change by -1 else by 0. Thus we can take d-1 but only if d is even. 
@@ -318,8 +322,8 @@ class simulation_grid:
         T = self.T0
         i = 2
         while T > self.Tf: 
-            self.markovStep(T)
             #print(f"Energy: {self.energy}, Temperature: {T}") # to track progress
+            self.markovStep(T)
             T = self.cooling_schedule_geometric(self.T0,self.geometric_rate,i) #update the tempurature
             #T = self.cooling_schedule_optimal(self.T0,i) #update the tempurature
             '''if it takes 4 seconds to vomplete the geometric regieme it will take 1e3/36 hours to complete the logarithmic regieme accourding to my back of the envalope calculatiosn.'''
@@ -344,6 +348,8 @@ def generate_simGrid_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=
     color : boolean : Determines if the image is read in color or black and white
     """
 
+    num_tiles = grid_size[0]*grid_size[1] # total number of tiles in the image
+
     if color:
         color_volume = cv2.imread(filename, cv2.IMREAD_COLOR)# we need these to be int16 so that there is not wrapping of the unsinged integers when we compute energies. This should allow proper energy computation; commented out the int16 part because I ordered the terms in the mean
         #print(type(color_volume[0,0,0])) # it is indeed stored as uint8
@@ -356,120 +362,85 @@ def generate_simGrid_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=
 
     '''Chop up the image'''
 
-    tiles = []
+    tiles = [] # this only contains the 
 
     if not color:
         width = gray_matrix.shape[1] # horizontal distance - should be the shoter of the two
         length = gray_matrix.shape[0]
         tile_width = width//grid_size[1]
         tile_length = length//grid_size[0]
-        #print(tile_length)
+        
+        tile_sides = -np.ones( ( num_tiles, 4, max(tile_length,tile_width) ), dtype=np.float32)
 
         for i in range(grid_size[0]):
             for j in range(grid_size[1]):
-                tiles.append({
-                    0: gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)], 
-                    2: gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)],
-                    1: gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j],
-                    3: gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1],
-                    "entire": gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)]# need this last one to reconstruct the array later
-                })
+                tiles.append(gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)]) # need this one to reconstruct the array later
+                index = i * grid_size[0] + j
+                tile_sides[index, 0, :tile_width] = gray_matrix[tile_length*i,tile_width*j:tile_width*(j+1)]
+                tile_sides[index, 2, :tile_width] = gray_matrix[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1)]
+                tile_sides[index, 1, :tile_length] = gray_matrix[tile_length*i:tile_length*(i+1),tile_width*j]
+                tile_sides[index, 3, :tile_length] = gray_matrix[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1]
         del gray_matrix # no need to store a large matrix any longer than we need it. We only need the boarders anyway
+        cached_energies = cache_energies_grayscale(num_tiles, tile_sides, energy_function, tile_length,tile_width)
+
     else:
         width = color_volume.shape[1] # horizontal distance - should be the shoter of the two
         length = color_volume.shape[0]
         tile_width = width//grid_size[1]
         tile_length = length//grid_size[0]
-        #print(tile_length)
+
+        tile_sides = -np.ones( ( num_tiles, 4, max(tile_length,tile_width), 3 ), dtype=np.float32)
 
         for i in range(grid_size[0]):
             for j in range(grid_size[1]):
-                tiles.append({
-                    0: color_volume[tile_length*i,tile_width*j:tile_width*(j+1),:], # top
-                    2: color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1),:], # bottom
-                    1: color_volume[tile_length*i:tile_length*(i+1),tile_width*j,:], # left
-                    3: color_volume[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1,:], # right
-                    "entire": color_volume[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] # need this last one to reconstruct the array later
-                }) # we use the wierd ordering so that we can use modular arithmatic to send top to bottom and left to right easily (and the reverse)
+                tiles.append(color_volume[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:]) # need this one to reconstruct the array later
+                index = i * grid_size[0] + j
+                tile_sides[index, 0, :tile_width, :] = color_volume[tile_length*i,tile_width*j:tile_width*(j+1), :]
+                tile_sides[index, 2, :tile_width, :] = color_volume[tile_length*(i+1)-1,tile_width*j:tile_width*(j+1), :]
+                tile_sides[index, 1, :tile_length, :] = color_volume[tile_length*i:tile_length*(i+1),tile_width*j, :]
+                tile_sides[index, 3, :tile_length, :] = color_volume[tile_length*i:tile_length*(i+1),tile_width*(j+1)-1, :]
 
         del color_volume # no need to store a large matrix any longer than we need it. We only need the boarders anyway
 
-    num_tiles = grid_size[0]*grid_size[1] # total number of tiles in the image
+        cached_energies = cache_energies_color(num_tiles, tile_sides, energy_function, tile_length,tile_width)
 
     grid = np.arange(0,num_tiles,1,dtype=int).reshape((grid_size[0],grid_size[1])) # the representation of the image; using uint8 because nothing is negative or bigger than 255 and thus using any other integer system would be wasteful
 
 
-    tiles = np.array(tiles, dtype=object) # apparently you can make a list of dictionaries into an array - this makes indexing later much easier - this is a change from the previous version
+    tiles = np.array(tiles, dtype=object) # apparently you can make a list of arrays into an array - this makes indexing later much easier - this is a change from the previous version
 
-    '''
-    Cache every possible interaction energy
-    We will use the following data structure to store this information. Recall that each tile has an index from 0 to 63. Thus we define an array that is
-    64 x 64 x 4; We read the array as follows: define the list ['top', 'left', 'bottom', 'right'] so that we can correspond 0 to 'top', 1 to 'left' and so on.
-    Then the index [4,45,2] means that we are searching for the energy of the interaction between tile 5's bottom face and 46's top face. Similarly, [56,7,1] means that
-    we are looking up the energy between 57's left face and 8's right.
-
-    We do need to account for the diagonal elemets such as [3,3,2]. I'll set these to np.inf since I never want the tile to interact favorably with itself.
-
-    The compatability function can take vector inputs, but would condense them to a single value so I don't think that we can vectorize this; especially since we would need to
-    look everything up in the dictionary. Thus we'll cache with a loop.
-
-    We can also write to a file for easier lookup in the future if we run the same image multiple times in testing but adding this is not a highpriority.
-
-    Note that if we define sigma(i) = (i+2)%4 then 0->2 (top->bottom),  1->3, 2->0 and 3->1 exactly as desired to get the opposites; thus we don't even need the conversion dictionary that I
-    was using in my previous versions.
-    '''
-
-    cache_energies = np.zeros((num_tiles,num_tiles,4),dtype=float)
-
-    for i in range(num_tiles):
-        for j in range(num_tiles):
-            for d_i in range(2):
-                if i == j: # diagonal elements are set to infinite since they can never happen anyway
-                    cache_energies[i,j,d_i] = np.inf
-                else:
-                    cache_energies[i,j,d_i] = energy_function( tiles[i][d_i], tiles[j][(d_i + 2) % 4] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
-
-    #Since we only did top and left, we can recover bottom and right since the matrix has the following property cache[i,j,0] = cache[j,i,2] and cache[i,j,1] = cache[j,i,3]
-    # by only computing half of the directions in the loop we should halve the compute time of the loop
-
-    X, Y = np.meshgrid(np.arange(0,num_tiles,1,dtype=int),np.arange(0,num_tiles,1,dtype=int))
-
-    cache_energies[X,Y,2] = cache_energies[Y,X,0]
-
-    cache_energies[X,Y,3] = cache_energies[Y,X,1]
-
-    #I'm fairly happy with my idea to use meshgrid to do this.
-
-    # this is actually suprisingly quick to compute though probably won't scale well for large puzzles. Luckily we only care about 64x64 right now.
-    # in the current case it might actually take longer to open a read a file than just recompute all of the energies
     print("cached tile energies")
     
 
-    return simulation_grid(grid, tiles, cache_energies, T0, Tf, geometric_decay_rate)
+    return simulation_grid(grid, tiles, cached_energies, T0, Tf, geometric_decay_rate)
 
 
 def annealing_reconstruct(simulation : simulation_grid, color = True):
-    tile_width = len(simulation.tile_data[0][0]) # length of the top of an arbitrary tile
-    tile_length = len(simulation.tile_data[0][1]) # length of the left of an arbitrary tile
-    
-    width = tile_width * simulation.grid_shape[1] # horizontal distance - should be the shoter of the two
-    length = tile_length * simulation.grid_shape[0]
-    
+    tile_width = (simulation.tile_data[0].shape[1]) # length of the top of an arbitrary tile
+    tile_length = (simulation.tile_data[0].shape[0]) # length of the left of an arbitrary tile
 
     if color:
-        resotred_page = np.zeros((length,width,3))
+
+        width = tile_width * simulation.grid_shape[1] # horizontal distance - should be the shoter of the two
+        length = tile_length * simulation.grid_shape[0]
+
+        resotred_page = np.empty((length,width,3),dtype=np.uint8)
 
         for i in range(simulation.grid_shape[0]):
             for j in range(simulation.grid_shape[1]):
                 dict_index = simulation.simGrid[i,j]
-                resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] = simulation.tile_data[dict_index]["entire"]
+                resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1),:] = simulation.tile_data[dict_index]
     else:
-        resotred_page = np.zeros((length,width))
+
+        width = tile_width * simulation.grid_shape[1] # horizontal distance - should be the shoter of the two
+        length = tile_length * simulation.grid_shape[0] 
+
+        resotred_page = np.empty((length,width),dtype=np.uint8)
 
         for i in range(simulation.grid_shape[0]):
             for j in range(simulation.grid_shape[1]):
                 dict_index = simulation.simGrid[i,j]
-                resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = simulation.tile_data[dict_index]["entire"]
+                resotred_page[tile_length*i:tile_length*(i+1),tile_width*j:tile_width*(j+1)] = simulation.tile_data[dict_index]
 
     return resotred_page.astype(np.uint8) # jpg can only handle this resolution anyway
 
@@ -478,3 +449,36 @@ def save_annealing_output(filename, simulation : simulation_grid, color = True, 
         reconstruction = annealing_reconstruct(simulation,color)
 
     cv2.imwrite(filename, reconstruction)
+
+@njit(parallel = True, fastmath = True)
+def cache_energies_color(num_tiles, tile_sides, energyFunction, tile_length,tile_width):
+
+    cached_energies = np.zeros((num_tiles,num_tiles,4),dtype=np.float32)
+
+    for i in prange(num_tiles): # run the first loop in parallel - innner loops apparently cannot be parallelized
+        for j in range(num_tiles):
+                if i == j: # diagonal elements are set to infinite since they can never happen anyway
+                    cached_energies[i,j,0] = np.inf
+                    cached_energies[i,j,1] = np.inf
+                else:
+                    cached_energies[i,j,0] = energyFunction( tile_sides[i, 0, :tile_width], tile_sides[j, 2, :tile_width,:] ) # cutting off at tile_width shouldn't matter since they subtract out anyway, but in the case of some other energy function this is a good practice to do anyway
+                    cached_energies[i,j,1] = energyFunction( tile_sides[i, 1, :tile_length], tile_sides[j, 3, :tile_length,:] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
+
+    return cached_energies
+
+
+@njit(parallel = True, fastmath = True)
+def cache_energies_grayscale(num_tiles, tile_sides, energyFunction, tile_length, tile_width):
+
+    cached_energies = np.empty((num_tiles,num_tiles,4),dtype=np.float32)
+
+    for i in prange(num_tiles): # run the first loop in parallel - innner loops apparently cannot be parallelized
+        for j in range(num_tiles):
+                if i == j: # diagonal elements are set to infinite since they can never happen anyway
+                    cached_energies[i,j,0] = np.inf
+                    cached_energies[i,j,1] = np.inf
+                else:
+                    cached_energies[i,j,0] = energyFunction( tile_sides[i, 0, :tile_width], tile_sides[j, 2, :tile_width] ) # cutting off at tile_width shouldn't matter since they subtract out anyway, but in the case of some other energy function this is a good practice to do anyway
+                    cached_energies[i,j,1] = energyFunction( tile_sides[i, 1, :tile_length], tile_sides[j, 3, :tile_length] ) # although tiles could be indexed with an array, I think compatability would average over everything so We'll have to settle for the loop
+
+    return cached_energies

@@ -19,8 +19,8 @@ def compatability(x,y):  # energy function
     return np.mean(np.abs(x-y))
 #compatability = lambda x,y: np.mean(np.maximum(x,y) - np.minimum(x,y))
 
-#simulation = generate_simGrid_from_file(file, color=Color, energy_function=compatability, grid_size=(40,60), T0=10., Tf=0.5, geometric_decay_rate=0.9999)
-simulation = generate_genome_from_file(file, color=Color,populationSize=100, numberGenerations=10, parentsPerGeneration=5, energy_function=compatability, grid_size=(20,30), T0=10., Tf=0.5, geometric_decay_rate=0.999, updates=True)
+#simulation = generate_simGrid_from_file(file, color=Color, energy_function=compatability, grid_size=(20,30), T0=10., Tf=0.5, geometric_decay_rate=0.9999)
+simulation = generate_genome_from_file(file, color=Color,populationSize=100, numberGenerations=5, parentsPerGeneration=5, energy_function=compatability, grid_size=(10,10), T0=10., Tf=0.5, geometric_decay_rate=0.999, updates=True)
 
 print(f"Initial Energy: {simulation.energy}")
 
@@ -34,7 +34,7 @@ restored_page = genome_reconstruct(simulation, color=Color)
 #restored_page = annealing_reconstruct(simulation, color=Color)
 
 #save_annealing_output("Outputs/"+"genome-color.jpg", simulation, Color, restored_page)
-save_genome_output("Outputs/"+"genome-color.jpg", simulation, Color, restored_page)
+#save_genome_output("Outputs/"+"genome-color.jpg", simulation, Color, restored_page)
 
 plt.imshow(restored_page)
 plt.show()
