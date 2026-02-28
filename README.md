@@ -22,6 +22,7 @@
   - [save_genome_output](#genome_classsave_genome_output)
 - [Development Notes and Example Outputs](#development-notes-and-example-outputs)
   - [Benchmarking](#benchmarking)
+  	-[Bechmarks for Energy Caching](#bechmarks-for-energy-caching)   
 
 # Project Purpose:
 This project implements simulated annealing and genetic algorithm approaches to reconstructing a shuffled image grid (often reffered to a jigsaw puzzle in the literature) by minimizing an energy function defined over tile boundary compatibilities. Further in development I would like to add additional functionality.
@@ -420,7 +421,7 @@ Running the pure annealing algorithm with single and subarray swaps at 0.67 and 
 </figure>
 
 ## Benchmarking
-
+### Bechmarks for Energy Caching:
 * For a 20x20 puzzle (Original_Nebula.jpg) we get:
 	* No NUMBA: 8.893833875656128 seconds
 	* NUMBA with compile time: 15.388114213943481 seconds
