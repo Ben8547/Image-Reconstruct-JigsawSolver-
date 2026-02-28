@@ -21,6 +21,7 @@
   - [genome_reconstruct](#genome_classgenome_reconstruct)
   - [save_genome_output](#genome_classsave_genome_output)
 - [Development Notes and Example Outputs](#development-notes-and-example-outputs)
+  - [Benchmarking](#benchmarking)
 
 # Project Purpose:
 This project implements simulated annealing and genetic algorithm approaches to reconstructing a shuffled image grid (often reffered to a jigsaw puzzle in the literature) by minimizing an energy function defined over tile boundary compatibilities. Further in development I would like to add additional functionality.
@@ -417,3 +418,14 @@ Running the pure annealing algorithm with single and subarray swaps at 0.67 and 
   <img src="https://github.com/Ben8547/Image-Reconstruct-JigsawSolver-/blob/main/ReadMeImages/pure-genome-color-10gens-100population.jpg" width="300"/>
   <figcaption><em>Figure 7: Result of genetic algorithm with 10 generations of 100 individuals per generation. The final energy was ____.</em></figcaption>
 </figure>
+
+## Benchmarking
+
+* For a 20x20 puzzle (Original_Nebula.jpg) we get:
+	* No NUMBA: 8.893833875656128 seconds
+	* NUMBA with compile time: 15.388114213943481 seconds
+	* NUMBA without compile time: 6.202281475067139 seconds
+* For a 40x60 puzzle (Original_Nebula.jpg) we get:
+	* No NUMBA: 293.23735904693604 seconds
+	* NUMBA with compile time: 231.85261917114258 seconds
+	* NUMBA without compile time: 215.7313826084137 seconds
