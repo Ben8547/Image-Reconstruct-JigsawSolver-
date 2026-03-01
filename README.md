@@ -438,3 +438,11 @@ Running the pure annealing algorithm with single and subarray swaps at 0.67 and 
 	* No NUMBA: 156.52668356895447 seconds
 	* NUMBA with compile time: 133.72849583625793 seconds
 	* NUMBA without compile time: 129.0991907119751 seconds
+
+### Genetic Algorithm Benchmarks
+* To complete 5 generations of 100 chromosomes and 5 parents of a 20x20 grid (Nebula): 240.65900325775146 seconds
+	* Simulation reached minimal energy in 1 generation
+* To complete 3 generations of 100 chromosomes and 5 parents of a 40x60 grid (Nebula): 11265.558423280716 seconds
+	* Simulation reached minimal energy within 1 generation
+
+

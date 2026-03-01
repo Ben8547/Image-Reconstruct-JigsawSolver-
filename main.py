@@ -10,9 +10,9 @@ from numba import njit
 Setup
 '''
 
-Color = True
+Color = False
 
-file = "Inputs/"+"Original_Nebula.jpg"
+file = "Inputs/"+"test.jpg"
 
 @njit(fastmath=True, parallel=True)
 def compatability(x,y):  # energy function
@@ -21,7 +21,7 @@ def compatability(x,y):  # energy function
 
 #simulation = generate_simGrid_from_file(file, color=Color, energy_function=compatability, grid_size=(20,30), T0=10., Tf=0.5, geometric_decay_rate=0.9999)
 start_time = time()
-simulation = generate_genome_from_file(file, color=Color,populationSize=100, numberGenerations=5, parentsPerGeneration=5, energy_function=compatability, grid_size=(20,30), T0=10., Tf=0.5, geometric_decay_rate=0.999, updates=True)
+simulation = generate_genome_from_file(file, color=Color,populationSize=100, numberGenerations=50, parentsPerGeneration=5, energy_function=compatability, grid_size=(8,8), T0=10., Tf=0.5, geometric_decay_rate=0.999, updates=True)
 
 print(f"Initial Energy: {simulation.energy}")
 
