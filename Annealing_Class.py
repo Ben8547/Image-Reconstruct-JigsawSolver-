@@ -159,8 +159,8 @@ class simulation_grid:
             Failed = False
             if random() < 0.95: # with 95% chance sample some pieces and choose the one with the highest local energy to swap with another point with high local energy
                 # sample 20 pieces from the puzzle and compute their local energies
-                sample_cols = randint(0,self.grid_shape[1],(20,1),dtype=int) # we don't turn off replacement, but the chance of duplicates is relatively low so it won't matter
-                sample_rows = randint(0,self.grid_shape[0],(20,1),dtype=int)
+                sample_cols = randint(0,self.grid_shape[1],(self.grid_shape[0]*self.grid_shape[1]//2,1),dtype=int) # we don't turn off replacement, but the chance of duplicates is relatively low so it won't matter
+                sample_rows = randint(0,self.grid_shape[0],(self.grid_shape[0]*self.grid_shape[1]//2,1),dtype=int)
                 samples = np.hstack([sample_rows,sample_cols],dtype=int)
                 worst_sample = samples[np.argmax(self.local_energy(self.simGrid,samples))] # Gets sample with the highest local energy; this return an index of a 2d array
                 worst_sample = (worst_sample[0],worst_sample[1]) # it is important that this is a tuple, if it is a list or an array, then numpy indexing treats it as two separate indicies to be looked up

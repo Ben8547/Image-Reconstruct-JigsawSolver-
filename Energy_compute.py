@@ -129,12 +129,12 @@ if __name__ == "__main__":
     #print(compute_energy(file = "Inputs/"+"test.jpg", color=True, energyFunction = compatability, puzzle_shape=(8,8)))
     #print(compute_energy(file = "Inputs/"+"Original_Squirrel.jpg", color=True, energyFunction = compatability,puzzle_shape=(8,8)))
     #print(compute_energy(file = "Inputs/"+"Original_RainbowFlower.jpg", color=True, energyFunction = compatability,puzzle_shape=(8,8)))
-    #print(compute_energy(file = "Inputs/"+"Nebula_Puzzle.jpg", color=True, energyFunction = compatability,puzzle_shape=(40,60)))
+    print(compute_energy(file = "Inputs/"+"Squirrel_Puzzle-7x7.jpg", color=True, energyFunction = compatability,puzzle_shape=(7,7)))
 
     #------
     # Benchmarking
     #------
-    start_time = time()
+    '''start_time = time()
     print(compute_energy(file = "Inputs/"+"Original_Nebula.jpg", color=True, energyFunction = compatability, puzzle_shape=(40,60)))
     end_time = time()
     print(f'completed in {end_time-start_time}')
@@ -142,4 +142,4 @@ if __name__ == "__main__":
     start_time = time()
     print(compute_energy(file = "Inputs/"+"Original_Nebula.jpg", color=True, energyFunction = compatability, puzzle_shape=(40,60)))
     end_time = time()
-    print(f'completed in {end_time-start_time}')
+    print(f'completed in {end_time-start_time}')'''
