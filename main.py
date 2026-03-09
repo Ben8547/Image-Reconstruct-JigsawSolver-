@@ -10,36 +10,48 @@ from numba import njit
 Setup
 '''
 
-Color = True
-
-file = "Inputs/"+"Nebula_Puzzle-small.jpg"
-
 @njit(fastmath=True, parallel=True)
 def compatability(x,y):  # energy function
     return np.mean(np.abs(x-y))
 #compatability = lambda x,y: np.mean(np.maximum(x,y) - np.minimum(x,y))
 
+solver = "GA" # may be SA, GA, or Linear
+
+Color = True
+
+file = "Inputs/"+"Squirrel_Puzzle.jpg"
+
+puzzle_size = (8,8)
+
+
 start_time = time()
-#simulation = generate_genome_from_file(file, color=Color,populationSize=100, numberGenerations=50, parentsPerGeneration=5, energy_function=compatability, grid_size=(8,8), T0=10., Tf=0.5, geometric_decay_rate=0.999, updates=True)
-simulation = generate_simGrid_from_file(file, color=Color, energy_function=compatability, grid_size=(20,30), T0=10., Tf=0.5, geometric_decay_rate=0.9999)
+if solver == "GA":
+    simulation = generate_genome_from_file(file, color=Color,populationSize=100, numberGenerations=5, parentsPerGeneration=5, energy_function=compatability, grid_size=puzzle_size, T0=10., Tf=0.5, geometric_decay_rate=0.999, updates=True)
+    print(f"Initial Energy: {simulation.energy}")
+    simulation.run_simulation()
+    #simulation.run_simulation_with_annealing()
+    end_time = time()
+    print(f"Final energy {simulation.energy}")
+    print(f"Completed in {end_time-start_time} seconds")
+    restored_page = genome_reconstruct(simulation, color=Color)
+    #save_genome_output("Outputs/"+"genome-color.jpg", simulation, Color, restored_page)
+elif solver == "SA":
+    simulation = generate_simGrid_from_file(file, color=Color, energy_function=compatability, grid_size=puzzle_size, T0=10., Tf=0.5, geometric_decay_rate=0.9999)
+    print(f"Initial Energy: {simulation.energy}")
+    simulation.anneal()
+    end_time = time()
+    print(f"Final energy {simulation.energy}")
+    print(f"Completed in {end_time-start_time} seconds")
+    restored_page = annealing_reconstruct(simulation, color=Color)
+    #save_annealing_output("Outputs/"+"genome-color.jpg", simulation, Color, restored_page)
+elif solver == "Linear":
+    pass
+else:
+    raise ValueError("solver is not properly specified")
 
-print(f"Initial Energy: {simulation.energy}")
 
-simulation.anneal()
-#simulation.run_simulation()
-#simulation.run_simulation_with_annealing()
-end_time = time()
-print(f"Final energy {simulation.energy}")
-print(f"Completed in {end_time-start_time} seconds")
 
-#restored_page = genome_reconstruct(simulation, color=Color)
-restored_page = annealing_reconstruct(simulation, color=Color)
-
-#save_annealing_output("Outputs/"+"genome-color.jpg", simulation, Color, restored_page)
-#save_genome_output("Outputs/"+"genome-color.jpg", simulation, Color, restored_page)
 restored_page = np.roll(restored_page,1,axis=2) # cv2 color orders do not natively match the matplotlib orders; this fixes that so that we can view the colors correctly; converts BGR in cv2 to RGB
 plt.imshow(restored_page)
 plt.show()
-
-'''Now that we have the ordered array, all that remains is to put the grayscale map back together.'''
 
