@@ -20,6 +20,14 @@ def compute_weight_row(min_energies_top: wp.array, min_energies_left: wp.array, 
     weights[row,:,0] = wp.min(min_energies_top[row + num_tiles], min_energies_top)
     weights[row,:,1] = wp.min(min_energies_left[row + num_tiles], min_energies_left)
 
+@njit(fastmath=True, parallel = True)
+def compute_weights_naive(weights:np.ndarray,energies:np.ndarray,min_energies_top_1:np.ndarray,min_energies_top_2:np.ndarray,min_energies_left_1:np.ndarray,min_energies_left_2:np.ndarray, num_tiles:int):
+    for i in prange(num_tiles):
+        for j in range(num_tiles):
+            weights[i,j,0] = min(min_energies_top_1[j],  min_energies_top_2[i]) / energies[i,j,0]
+            weights[i,j,1] = min(min_energies_left_1[j],  min_energies_left_2[i]) / energies[i,j,1]
+
+
     
 
 #
@@ -35,12 +43,12 @@ class Linear_solver:
     def __init__(self, grid: np.ndarray, cached_energy: np.ndarray ):
         self.grid = grid
         self.cached_energy = wp.array(cached_energy,dtype=wp.float32)
+        self.num_tiles = self.cached_energy.shape[0]
         self.weights = self.compute_weights()
 
     def  compute_weights(self):
         '''w_{ijo} will require an array size of the energies to store'''
-        num_tiles = self.cached_energy.shape[0]
-        weights = wp.empty((num_tiles,num_tiles,2) , dtype=wp.float32)
+        
         # find the minimal interactions along each direction
         min_energies_top_1 = np.min(self.cached_energy[:,:,0],axis = 0) # the jth element of the resultant array gives the value min_{k\neq j}(E_{kj0})
         min_energies_left_1 = np.min(self.cached_energy[:,:,1],axis = 0) # the jth element of the resultant array gives the value min_{k\neq j}(E_{kj1})
@@ -51,18 +59,19 @@ class Linear_solver:
         # min_energies_right_1 = min_energies_left_2
         # min_energies_bottom_2 = min_energies_top_1
         # min_energies_right_2 = min_energies_left_1
+        '''Like the energies; the bottom and right weights are the transpose of the top and left weights respectively'''
 
-        min_energies_top = wp.array(np.concatenate(min_energies_top_1,min_energies_top_2), dtype=wp.float32)
-        min_energies_left = wp.array(np.concatenate(min_energies_left_1, min_energies_left_2), dtype=wp.float32)
-
-        wp.launch(kernel = compute_weight_row, dim = num_tiles,inputs=[min_energies_top,min_energies_left,num_tiles,weights],outputs=[weights])
+        #weights = wp.empty((num_tiles,num_tiles,2) , dtype=wp.float32)
+        weights = np.empty((self.num_tiles,self.num_tiles,2),dtype=np.float32)
+        #wp.launch(kernel = compute_weight_row, dim = num_tiles,inputs=[min_energies_top,min_energies_left,num_tiles,weights],outputs=[weights])
+        compute_weights_naive(weights,self.cached_energy,min_energies_top_1,min_energies_top_2,min_energies_left_1,min_energies_left_2, self.num_tiles)
         return weights
     
     @njit(fastmath=True, parallel = True)
     def cost(self):
         for 
-            x_cost = np.linalg.norm(,ord=0) #L0 norm
-            y_cost = np.linalg.norm(,ord=0)
+            x_cost = np.linalg.norm(,ord=1) #L1 norm
+            y_cost = np.linalg.norm(,ord=1)
         return x_cost + y_cost
 
 
