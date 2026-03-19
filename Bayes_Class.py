@@ -16,7 +16,7 @@ class Bayes_premade: # this class uses a premade Bayesian Optomization package -
         2) it does not respect the uniqueness of tiles and thus the same tile could be chosen multiple times in the optomal solution
         3) We cannot set the eneriges of the same tile to infinite
     '''
-    def __init__(self, grid, dict_list, cached_energies, init_points = 5, n_iter = 25):
+    def __init__(self, grid, dict_list, cached_energies, init_points = 5, n_iter = 25, verbose = 0):
         self.grid : np.ndarray = grid
         self.grid_shape = grid.shape
         self.num_tiles : int = self.grid_shape[0] * self.grid_shape[1] # number of tiles in the puzzle
@@ -24,8 +24,9 @@ class Bayes_premade: # this class uses a premade Bayesian Optomization package -
         self.cached_energies = cached_energies
         self.objective_function = self.create_objective_function()
         self.pbounds = { "position%i"%i : (0, self.num_tiles-1, int) for i in range(self.num_tiles)} # dictionary indicating the restrictions on parameter space over which to optomize
+        self.keys = [f"position{i}" for i in range(self.num_tiles)]
 
-        self.optomizer = BayesianOptimization(f = self.objective_function, pbounds = self.pbounds, verbose=0, random_state = 1)
+        self.optomizer = BayesianOptimization(f = self.objective_function, pbounds = self.pbounds, verbose=verbose, random_state = 1)
 
         self.optomizer.maximize(init_points, n_iter)
 
@@ -42,11 +43,13 @@ class Bayes_premade: # this class uses a premade Bayesian Optomization package -
 
         def objective_function(**Array_Indicies): # the negative of the energy - the process maximizes but we want the minimal energy
             # Array_Indicies will be a dictionary with the same keys as self.pbounds
-            grid = np.zeros((self.grid_shape[0],self.grid_shape[1]), dtype=int)
+            '''grid = np.zeros((self.grid_shape[0],self.grid_shape[1]), dtype=int)
             for i in range(self.num_tiles):
                 m = i // self.grid_shape[1] # row index
                 n = i % self.grid_shape[1] # column index
-                grid[m,n] = Array_Indicies["position%i"%i]
+                grid[m,n] = Array_Indicies["position%i"%i]'''
+            values = np.fromiter((Array_Indicies[i] for i in self.keys), dtype=int )
+            grid = values.reshape(self.grid_shape)
             
             top_current = grid[1:, :]
 
@@ -58,7 +61,7 @@ class Bayes_premade: # this class uses a premade Bayesian Optomization package -
             energy_top = np.sum(self.cached_energies[top_current, top_neighbors, 0])
             energy_left = np.sum(self.cached_energies[left_current, left_neighbors, 1])
 
-            return energy_left + energy_top
+            return -(energy_left + energy_top)
 
         return objective_function
     
@@ -72,7 +75,7 @@ class Bayes_premade: # this class uses a premade Bayesian Optomization package -
 #------------------------------------------
 #
 
-def generate_bayes_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(8,8), color=True, energy_function = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y)), init_points = 5, n_iter = 25) -> Bayes_premade:
+def generate_bayes_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(8,8), color=True, energy_function = lambda x,y: np.mean(np.maximum(x,y)-np.minimum(x,y)), init_points = 5, n_iter = 25, verbose = 0) -> Bayes_premade:
     """
     Create a simulation_grid object directly from an image file.
 
@@ -145,7 +148,7 @@ def generate_bayes_from_file(filename="Inputs/Squirrel_Puzzle.jpg", grid_size=(8
     print("cached tile energies")
     
 
-    return Bayes_premade(grid,tiles,cached_energies,init_points,n_iter)
+    return Bayes_premade(grid,tiles,cached_energies,init_points,n_iter, verbose=verbose)
 
 
 def cache_energies_color(num_tiles, tile_sides, energyFunction, tile_length,tile_width):
