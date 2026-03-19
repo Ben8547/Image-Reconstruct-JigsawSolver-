@@ -14,3 +14,10 @@ class Bayes:
         self.grid = grid
         self.tile_data = dict_list
         self.cached_energies = cached_energies
+
+    def create_objective_function(self):
+        
+        def objective_function():
+            pass
+
+        return objective_function
