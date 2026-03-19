@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
-from time import sleep
 from Annealing_Class import simulation_grid
 from numba import prange, njit
 
