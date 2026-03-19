@@ -1,5 +1,6 @@
 from Annealing_Class import generate_simGrid_from_file, save_annealing_output, annealing_reconstruct
 from Genome_Class import generate_genome_from_file, save_genome_output, genome_reconstruct
+from Bayes_Class import generate_bayes_from_file, save_bayes_output, bayes_reconstruct
 import matplotlib.pyplot as plt
 import numpy as np
 from time import sleep, time
@@ -15,7 +16,7 @@ def compatability(x,y):  # energy function
     return np.mean(np.abs(x-y))
 #compatability = lambda x,y: np.mean(np.maximum(x,y) - np.minimum(x,y))
 
-solver = "GA" # may be SA, GA, or Linear
+solver = "Bayes" # may be SA, GA, Linear, or Bayes
 
 Color = True
 
@@ -46,6 +47,13 @@ elif solver == "SA":
     #save_annealing_output("Outputs/"+"genome-color.jpg", simulation, Color, restored_page)
 elif solver == "Linear":
     pass
+elif solver == "Bayes":
+    simulation = generate_bayes_from_file(file, color=Color, energy_function=compatability, init_points=100, n_iter=250)
+    end_time = time()
+    print(f"Completed in {end_time-start_time} seconds")
+    print(f"Final energy {simulation.energy}")
+    restored_page = bayes_reconstruct(simulation, color=Color)
+    #save_bayes_output("Outputs/"+"genome-color.jpg", simulation, Color, restored_page)
 else:
     raise ValueError("solver is not properly specified")
 
