@@ -48,7 +48,7 @@ elif solver == "SA":
 elif solver == "Linear":
     pass
 elif solver == "Bayes":
-    simulation = generate_bayes_from_file(file, color=Color, energy_function=compatability, init_points=100, n_iter=250)
+    simulation = generate_bayes_from_file(file, color=Color, energy_function=compatability, init_points=100, n_iter=50)
     end_time = time()
     print(f"Completed in {end_time-start_time} seconds")
     print(f"Final energy {simulation.energy}")
